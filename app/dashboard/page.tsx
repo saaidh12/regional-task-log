@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
 
 import AppShell from "@/app/components/AppShell";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+type RegionCode = "SPR" | "SCPR" | "NCPR" | "NPR" | "UNPR";
 
 export default async function DashboardPage() {
   const user = await getSession();
@@ -16,7 +19,7 @@ export default async function DashboardPage() {
     user.role === "MAIN_ADMIN"
       ? {}
       : {
-          region: user.region as "SPR" | "SCPR" | "NCPR" | "NPR" | "UNPR",
+          region: user.region as RegionCode,
         };
 
   const infoWhere =
@@ -54,6 +57,8 @@ export default async function DashboardPage() {
     recentTasks,
     recentInformation,
     recentSupportTickets,
+    recentYaumiyya,
+    recentPersons,
   ] = await Promise.all([
     prisma.task.count({ where: taskWhere }),
     prisma.task.count({ where: { ...taskWhere, status: "PENDING" } }),
@@ -70,13 +75,29 @@ export default async function DashboardPage() {
     prisma.task.findMany({
       where: taskWhere,
       orderBy: { createdAt: "desc" },
-      take: 4,
+      take: 3,
+      include: {
+        sharedToOptions: {
+          include: {
+            sharedToOption: {
+              select: { name: true },
+            },
+          },
+        },
+        requestTypeOptions: {
+          include: {
+            requestTypeOption: {
+              select: { name: true },
+            },
+          },
+        },
+      },
     }),
 
     prisma.infoShare.findMany({
       where: infoWhere,
       orderBy: { createdAt: "desc" },
-      take: 4,
+      take: 3,
       include: {
         sharedToAreas: {
           include: {
@@ -91,7 +112,47 @@ export default async function DashboardPage() {
     prisma.supportTicket.findMany({
       where: supportWhere,
       orderBy: { updatedAt: "desc" },
-      take: 4,
+      take: 3,
+      include: {
+        attachments: {
+          select: { id: true },
+        },
+        replies: {
+          select: { id: true },
+        },
+      },
+    }),
+
+    prisma.yaumiyyaRecord.findMany({
+      where: taskWhere,
+      orderBy: { createdAt: "desc" },
+      take: 3,
+      include: {
+        participants: {
+          select: { id: true },
+        },
+        assignedTaskItems: {
+          select: {
+            id: true,
+            isCompleted: true,
+          },
+        },
+      },
+    }),
+
+    prisma.personRecord.findMany({
+      where: taskWhere,
+      orderBy: { createdAt: "desc" },
+      take: 3,
+      include: {
+        crimeCategories: {
+          include: {
+            crimeCategory: {
+              select: { name: true },
+            },
+          },
+        },
+      },
     }),
   ]);
 
@@ -122,174 +183,258 @@ export default async function DashboardPage() {
               </p>
 
               <div className="mt-5 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
-                <HeroButton href="/tasks/new" label="Add Task" />
-                <HeroButton href="/information/new" label="Add Info" />
-                <HeroButton href="/yaumiyya/new" label="Add Yaumiyya" />
-                <HeroButton href="/database/new" label="Add Person" />
-                <HeroButton href="/support/new" label="New Ticket" />
-                <HeroButton href="/reports" label="Reports" />
+                <HeroButton href="/tasks/new" label="Add Task" icon="＋" />
+                <HeroButton href="/information/new" label="Add Info" icon="ℹ" />
+                <HeroButton
+                  href="/yaumiyya/new"
+                  label="Add Yaumiyya"
+                  icon="☑"
+                />
+                <HeroButton href="/database/new" label="Add Person" icon="👤" />
+                <HeroButton href="/support/new" label="New Ticket" icon="⚙" />
+                <HeroButton href="/reports" label="Reports" icon="📊" />
               </div>
             </div>
           </div>
         </div>
 
-        <details className="group mt-5 rounded-[2rem] border border-blue-100 bg-white p-3 shadow-sm">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-[1.5rem] bg-blue-50 px-4 py-4">
-            <div className="min-w-0">
-              <p className="text-sm font-black text-slate-900">
-                Overview Numbers
-              </p>
-              <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
-                Tasks, information, database, support and region summary
-              </p>
-            </div>
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+          <StatCard title="Total Tasks" value={totalTasks} href="/tasks" />
+          <StatCard
+            title="Pending"
+            value={pendingTasks}
+            href="/tasks?status=PENDING"
+            tone="amber"
+          />
+          <StatCard
+            title="In Progress"
+            value={inProgressTasks}
+            href="/tasks?status=IN_PROGRESS"
+            tone="blue"
+          />
+          <StatCard
+            title="Completed"
+            value={completedTasks}
+            href="/tasks?status=COMPLETED"
+            tone="emerald"
+          />
+          <StatCard
+            title="Closed"
+            value={closedTasks}
+            href="/tasks?status=CLOSED"
+            tone="slate"
+          />
+          <StatCard
+            title="Open Tickets"
+            value={openSupportTickets}
+            href="/support?status=OPEN"
+            tone="red"
+          />
+        </div>
 
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-sm font-black text-white transition group-open:rotate-180">
-              ↓
-            </span>
-          </summary>
-
-          <div className="mt-3 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
-            <StatCard title="Tasks" value={totalTasks} href="/tasks" />
-            <StatCard title="Pending" value={pendingTasks} href="/tasks" />
-            <StatCard
+        <CollapsiblePanel
+          title="System Modules"
+          subtitle="Information, Yaumiyya, database, support and user overview"
+          defaultOpen={false}
+        >
+          <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
+            <ModuleCard
               title="Information"
               value={totalInformation}
               href="/information"
+              icon="ℹ"
             />
-            <StatCard title="Yaumiyya" value={totalYaumiyya} href="/yaumiyya" />
-            <StatCard title="Database" value={totalPersons} href="/database" />
-            <StatCard
+            <ModuleCard
+              title="Yaumiyya"
+              value={totalYaumiyya}
+              href="/yaumiyya"
+              icon="☑"
+            />
+            <ModuleCard
+              title="Database"
+              value={totalPersons}
+              href="/database"
+              icon="👤"
+            />
+            <ModuleCard
               title="Support"
               value={totalSupportTickets}
               href="/support"
+              icon="⚙"
             />
-
-            <MiniStat title="In Progress" value={inProgressTasks} />
-            <MiniStat title="Completed" value={completedTasks} />
-            <MiniStat title="Closed" value={closedTasks} />
-            <MiniStat title="Open Tickets" value={openSupportTickets} />
-            <MiniStat
+            <ModuleCard
               title="Users"
               value={user.role === "MAIN_ADMIN" ? totalUsers : "-"}
+              href={user.role === "MAIN_ADMIN" ? "/users" : "/dashboard"}
+              icon="🔐"
             />
-            <MiniStat
+            <ModuleCard
               title="Region"
               value={user.role === "MAIN_ADMIN" ? "ALL" : user.region || "-"}
+              href="/dashboard"
+              icon="📍"
             />
           </div>
-        </details>
+        </CollapsiblePanel>
 
-        <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-3">
-          <RecentPanel title="Recent Task Updates" href="/tasks">
-            {recentTasks.length === 0 ? (
-              <EmptyBox text="No tasks added yet." />
-            ) : (
-              recentTasks.map((task) => (
-                <Link
-                  key={task.id}
-                  href="/tasks"
-                  className="block rounded-2xl bg-slate-50 p-4 hover:bg-blue-50"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-black text-slate-900">
-                        {task.taskNumber}
-                      </p>
-                      <p className="mt-1 text-xs font-bold text-slate-500">
-                        {formatDate(task.date)} • {task.region} • {task.atoll}
-                      </p>
-                    </div>
+        <CollapsiblePanel
+          title="Recent Activity"
+          subtitle="Latest 3 records only. Open to check recent system updates."
+          defaultOpen={false}
+        >
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <RecentPanel title="Recent Task Updates" href="/tasks">
+              {recentTasks.length === 0 ? (
+                <EmptyBox text="No tasks added yet." />
+              ) : (
+                recentTasks.map((task) => {
+                  const sharedTo = task.sharedToOptions
+                    .map((item) => item.sharedToOption.name)
+                    .join(", ");
 
-                    <StatusBadge status={task.status} />
-                  </div>
+                  const requestTypes = task.requestTypeOptions
+                    .map((item) => item.requestTypeOption.name)
+                    .join(", ");
 
-                  <p className="dhivehi-text line-clamp-2 mt-3 break-words text-sm text-slate-700 [overflow-wrap:anywhere]">
-                    {task.description}
-                  </p>
-                </Link>
-              ))
-            )}
-          </RecentPanel>
+                  return (
+                    <RecentCard
+                      key={task.id}
+                      href={`/tasks/${task.id}/edit`}
+                      title={task.taskNumber}
+                      meta={`${formatDate(task.date)} • ${task.region} • ${
+                        task.atoll
+                      }${task.island ? ` / ${task.island}` : ""}`}
+                      badge={<StatusBadge status={task.status} />}
+                      preview={task.description}
+                      footer={
+                        sharedTo || requestTypes
+                          ? `${sharedTo || "No shared to"}${
+                              requestTypes ? ` • ${requestTypes}` : ""
+                            }`
+                          : "No extra details"
+                      }
+                    />
+                  );
+                })
+              )}
+            </RecentPanel>
 
-          <RecentPanel title="Recent Shared Information" href="/information">
-            {recentInformation.length === 0 ? (
-              <EmptyBox text="No information added yet." />
-            ) : (
-              recentInformation.map((info) => {
-                const areas = info.sharedToAreas
-                  .map((item) => item.area.name)
-                  .join(", ");
+            <RecentPanel title="Recent Shared Information" href="/information">
+              {recentInformation.length === 0 ? (
+                <EmptyBox text="No information added yet." />
+              ) : (
+                recentInformation.map((info) => {
+                  const areas = info.sharedToAreas
+                    .map((item) => item.area.name)
+                    .join(", ");
 
-                return (
-                  <Link
-                    key={info.id}
-                    href="/information"
-                    className="block rounded-2xl bg-slate-50 p-4 hover:bg-blue-50"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="line-clamp-2 break-words font-black text-slate-900 [overflow-wrap:anywhere]">
-                          {info.title}
-                        </p>
-                        <p className="mt-1 text-xs font-bold text-slate-500">
-                          {formatDate(info.date)} • {areas || "-"}
-                        </p>
-                      </div>
+                  return (
+                    <RecentCard
+                      key={info.id}
+                      href="/information"
+                      title={info.title}
+                      meta={`${formatDate(info.date)} • ${areas || "-"}`}
+                      badge={<PriorityBadge priority={info.priority} />}
+                      preview={info.details}
+                      footer={
+                        info.source ? `Source: ${info.source}` : "No source"
+                      }
+                    />
+                  );
+                })
+              )}
+            </RecentPanel>
 
-                      <PriorityBadge priority={info.priority} />
-                    </div>
-                  </Link>
-                );
-              })
-            )}
-          </RecentPanel>
+            <RecentPanel title="Recent Support Tickets" href="/support">
+              {recentSupportTickets.length === 0 ? (
+                <EmptyBox text="No support tickets yet." />
+              ) : (
+                recentSupportTickets.map((ticket) => (
+                  <RecentCard
+                    key={ticket.id}
+                    href={`/support/${ticket.id}`}
+                    title={`${ticket.ticketNumber} — ${ticket.subject}`}
+                    meta={`${ticket.createdByName} • ${formatDate(
+                      ticket.createdAt
+                    )}`}
+                    badge={<TicketStatusBadge status={ticket.status} />}
+                    preview={ticket.details}
+                    footer={`${ticket.priority} priority • ${
+                      ticket.attachments.length
+                    } attachment(s) • ${ticket.replies.length} reply`}
+                  />
+                ))
+              )}
+            </RecentPanel>
 
-          <RecentPanel title="Recent Support Tickets" href="/support">
-            {recentSupportTickets.length === 0 ? (
-              <EmptyBox text="No support tickets yet." />
-            ) : (
-              recentSupportTickets.map((ticket) => (
-                <Link
-                  key={ticket.id}
-                  href={`/support/${ticket.id}`}
-                  className="block rounded-2xl bg-slate-50 p-4 hover:bg-blue-50"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-black text-blue-700">
-                        {ticket.ticketNumber}
-                      </p>
-                      <p className="mt-1 line-clamp-2 break-words text-sm font-black text-slate-900 [overflow-wrap:anywhere]">
-                        {ticket.subject}
-                      </p>
-                      <p className="mt-1 truncate text-xs font-bold text-slate-500">
-                        {ticket.createdByName}
-                      </p>
-                    </div>
+            <RecentPanel title="Recent Yaumiyya" href="/yaumiyya">
+              {recentYaumiyya.length === 0 ? (
+                <EmptyBox text="No Yaumiyya records yet." />
+              ) : (
+                recentYaumiyya.map((record) => {
+                  const completed = record.assignedTaskItems.filter(
+                    (task) => task.isCompleted
+                  ).length;
 
-                    <TicketStatusBadge status={ticket.status} />
-                  </div>
-                </Link>
-              ))
-            )}
-          </RecentPanel>
-        </div>
+                  return (
+                    <RecentCard
+                      key={record.id}
+                      href={`/yaumiyya/${record.id}/edit`}
+                      title={record.meetingTitle || "Yaumiyya Meeting Note"}
+                      meta={`${formatDate(record.date)} • ${record.region}${
+                        record.startTime ? ` • ${record.startTime}` : ""
+                      }`}
+                      badge={
+                        <SmallBadge>
+                          {record.participants.length} Participants
+                        </SmallBadge>
+                      }
+                      preview={record.meetingNotes}
+                      footer={`${record.assignedTaskItems.length} assigned • ${completed} completed`}
+                    />
+                  );
+                })
+              )}
+            </RecentPanel>
 
-        <div className="mt-5 rounded-[2rem] border border-blue-100 bg-white p-4 shadow-sm sm:p-5">
-          <h3 className="text-lg font-black text-slate-900">
-            Access Permission
-          </h3>
+            <RecentPanel title="Recently Added Persons" href="/database">
+              {recentPersons.length === 0 ? (
+                <EmptyBox text="No persons added yet." />
+              ) : (
+                recentPersons.map((person) => {
+                  const categories = person.crimeCategories
+                    .map((item) => item.crimeCategory.name)
+                    .join(", ");
 
-          <p className="mt-2 text-sm leading-6 text-slate-500">
-            Main Admin can view all regional data. Staff can view region based
-            data and their own support tickets. Disabled users cannot login, but
-            old records remain saved.
-          </p>
+                  return (
+                    <RecentCard
+                      key={person.id}
+                      href={`/database/${person.id}/edit`}
+                      title={person.fullName}
+                      meta={`${person.region}${
+                        person.island ? ` • ${person.island}` : ""
+                      }${person.idNumber ? ` • ${person.idNumber}` : ""}`}
+                      badge={<SmallBadge>{person.region}</SmallBadge>}
+                      preview={person.address || person.notes || "No preview"}
+                      footer={categories || "No category"}
+                    />
+                  );
+                })
+              )}
+            </RecentPanel>
+          </div>
+        </CollapsiblePanel>
 
-          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <CollapsiblePanel
+          title="Quick Management"
+          subtitle="Open admin and management shortcuts when needed."
+          defaultOpen={false}
+        >
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <QuickLink href="/reports" label="Reports" />
             <QuickLink href="/support" label="Support Tickets" />
+            <QuickLink href="/information" label="Shared Information" />
+            <QuickLink href="/database" label="Person Database" />
             {user.role === "MAIN_ADMIN" && (
               <>
                 <QuickLink href="/users" label="Manage Users" />
@@ -297,19 +442,67 @@ export default async function DashboardPage() {
               </>
             )}
           </div>
-        </div>
+
+          <p className="mt-4 text-sm leading-6 text-slate-500">
+            Main Admin can view all regional data. Staff can view region-based
+            records and their own support tickets.
+          </p>
+        </CollapsiblePanel>
       </section>
     </AppShell>
   );
 }
 
-function HeroButton({ href, label }: { href: string; label: string }) {
+function CollapsiblePanel({
+  title,
+  subtitle,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  return (
+    <details
+      open={defaultOpen}
+      className="group mt-5 rounded-[2rem] border border-blue-100 bg-white p-3 shadow-sm"
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-[1.5rem] bg-blue-50 px-4 py-4">
+        <div className="min-w-0">
+          <p className="text-sm font-black text-slate-900">{title}</p>
+          <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
+            {subtitle}
+          </p>
+        </div>
+
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-sm font-black text-white transition group-open:rotate-180">
+          ↓
+        </span>
+      </summary>
+
+      <div className="mt-3">{children}</div>
+    </details>
+  );
+}
+
+function HeroButton({
+  href,
+  label,
+  icon,
+}: {
+  href: string;
+  label: string;
+  icon: string;
+}) {
   return (
     <Link
       href={href}
-      className="min-w-0 rounded-2xl bg-white/10 px-3 py-3 text-center text-xs font-black text-white ring-1 ring-white/15 transition hover:bg-white/20"
+      className="flex min-w-0 items-center justify-center gap-2 rounded-2xl bg-white/10 px-3 py-3 text-center text-xs font-black text-white ring-1 ring-white/15 transition hover:bg-white/20"
     >
-      <span className="block truncate">{label}</span>
+      <span className="shrink-0">{icon}</span>
+      <span className="truncate">{label}</span>
     </Link>
   );
 }
@@ -318,11 +511,24 @@ function StatCard({
   title,
   value,
   href,
+  tone = "blue",
 }: {
   title: string;
   value: number | string;
   href: string;
+  tone?: "blue" | "amber" | "emerald" | "red" | "slate";
 }) {
+  const toneClass =
+    tone === "amber"
+      ? "bg-amber-50 text-amber-700"
+      : tone === "emerald"
+        ? "bg-emerald-50 text-emerald-700"
+        : tone === "red"
+          ? "bg-red-50 text-red-700"
+          : tone === "slate"
+            ? "bg-slate-100 text-slate-700"
+            : "bg-blue-50 text-blue-700";
+
   return (
     <Link
       href={href}
@@ -335,25 +541,44 @@ function StatCard({
       <p className="mt-2 truncate text-2xl font-black text-slate-900">
         {value}
       </p>
+
+      <span
+        className={`mt-3 inline-flex rounded-full px-3 py-1 text-[10px] font-black ${toneClass}`}
+      >
+        View
+      </span>
     </Link>
   );
 }
 
-function MiniStat({
+function ModuleCard({
   title,
   value,
+  href,
+  icon,
 }: {
   title: string;
   value: number | string;
+  href: string;
+  icon: string;
 }) {
   return (
-    <div className="min-w-0 rounded-[1.4rem] border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="truncate text-[11px] font-black uppercase tracking-wide text-slate-400">
-        {title}
-      </p>
+    <Link
+      href={href}
+      className="min-w-0 rounded-[1.4rem] border border-slate-200 bg-white p-4 shadow-sm hover:bg-blue-50"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="truncate text-[11px] font-black uppercase tracking-wide text-slate-400">
+          {title}
+        </p>
+
+        <span className="shrink-0 rounded-xl bg-blue-50 px-2 py-1 text-xs">
+          {icon}
+        </span>
+      </div>
 
       <p className="mt-2 truncate text-xl font-black text-slate-900">{value}</p>
-    </div>
+    </Link>
   );
 }
 
@@ -364,12 +589,12 @@ function RecentPanel({
 }: {
   title: string;
   href: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <div className="min-w-0 rounded-[2rem] border border-blue-100 bg-white p-4 shadow-sm sm:p-5">
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <h3 className="min-w-0 truncate text-lg font-black text-slate-900">
+    <div className="min-w-0 rounded-[1.7rem] border border-blue-100 bg-white p-4 shadow-sm sm:p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="min-w-0 truncate text-base font-black text-slate-900">
           {title}
         </h3>
 
@@ -383,6 +608,50 @@ function RecentPanel({
 
       <div className="space-y-3">{children}</div>
     </div>
+  );
+}
+
+function RecentCard({
+  href,
+  title,
+  meta,
+  badge,
+  preview,
+  footer,
+}: {
+  href: string;
+  title: string;
+  meta: string;
+  badge: ReactNode;
+  preview: string;
+  footer: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="block rounded-[1.5rem] bg-slate-50 p-4 transition hover:bg-blue-50"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="line-clamp-2 break-words font-black text-slate-900 [overflow-wrap:anywhere]">
+            {title}
+          </p>
+          <p className="mt-1 line-clamp-1 text-xs font-bold text-slate-500">
+            {meta}
+          </p>
+        </div>
+
+        {badge}
+      </div>
+
+      <p className="dhivehi-text line-clamp-2 mt-3 break-words text-sm leading-6 text-slate-700 [overflow-wrap:anywhere]">
+        {preview}
+      </p>
+
+      <p className="mt-3 line-clamp-1 text-xs font-black text-slate-400">
+        {footer}
+      </p>
+    </Link>
   );
 }
 
@@ -403,6 +672,14 @@ function EmptyBox({ text }: { text: string }) {
     <div className="rounded-2xl bg-slate-50 p-5 text-center text-sm font-bold text-slate-500">
       {text}
     </div>
+  );
+}
+
+function SmallBadge({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
+      {children}
+    </span>
   );
 }
 

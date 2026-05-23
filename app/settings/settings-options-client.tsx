@@ -27,26 +27,45 @@ export default function SettingsOptionsClient({
   requestTypeOptions: OptionItem[];
   crimeCategories: CrimeCategoryItem[];
 }) {
+  const totalSharedActive = sharedToOptions.filter((item) => item.isActive).length;
+  const totalRequestActive = requestTypeOptions.filter((item) => item.isActive).length;
+  const totalCrimeActive = crimeCategories.filter((item) => item.isActive).length;
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-24 lg:pb-8">
       <div className="overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600 text-white shadow-xl shadow-blue-900/20">
-        <div className="p-6 sm:p-8">
-          <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-200">
-            Admin Settings
-          </p>
+        <div className="relative p-6 sm:p-8">
+          <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-cyan-400/20 blur-2xl" />
+          <div className="absolute bottom-0 left-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
 
-          <h1 className="mt-3 text-3xl font-black sm:text-4xl">
-            Dropdown Management
-          </h1>
+          <div className="relative">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-100">
+              Admin Settings
+            </p>
 
-          <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-blue-100">
-            Manage task dropdowns and region-wise crime categories for the
-            person database.
-          </p>
+            <h1 className="mt-3 text-3xl font-black sm:text-4xl">
+              Dropdown Management
+            </h1>
+
+            <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-blue-100">
+              Manage task dropdowns and region-wise crime categories for the
+              person database.
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <SummaryCard title="Shared To" value={sharedToOptions.length} active={totalSharedActive} />
+        <SummaryCard title="Request Type" value={requestTypeOptions.length} active={totalRequestActive} />
+        <SummaryCard title="Crime Categories" value={crimeCategories.length} active={totalCrimeActive} />
+      </div>
+
+      <CollapsiblePanel
+        title="Information Shared To"
+        subtitle="Options staff can select when task information is shared."
+        defaultOpen
+      >
         <OptionManager
           title="Information Shared To"
           subtitle="Options staff can select when information is shared."
@@ -54,7 +73,12 @@ export default function SettingsOptionsClient({
           options={sharedToOptions}
           placeholder="Example: Investigation"
         />
+      </CollapsiblePanel>
 
+      <CollapsiblePanel
+        title="Request Type"
+        subtitle="Options staff can select for task request/category type."
+      >
         <OptionManager
           title="Request Type"
           subtitle="Options staff can select for request/category type."
@@ -62,9 +86,72 @@ export default function SettingsOptionsClient({
           options={requestTypeOptions}
           placeholder="Example: Theft"
         />
-      </div>
+      </CollapsiblePanel>
 
-      <CrimeCategoryManager options={crimeCategories} />
+      <CollapsiblePanel
+        title="Region Crime Categories"
+        subtitle="Categories used in the person database, separated by region."
+      >
+        <CrimeCategoryManager options={crimeCategories} />
+      </CollapsiblePanel>
+    </div>
+  );
+}
+
+function CollapsiblePanel({
+  title,
+  subtitle,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  return (
+    <details
+      open={defaultOpen}
+      className="group rounded-[2rem] border border-blue-100 bg-white p-3 shadow-sm"
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-[1.5rem] bg-blue-50 px-4 py-4">
+        <div className="min-w-0">
+          <p className="text-sm font-black text-slate-900">{title}</p>
+          <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
+            {subtitle}
+          </p>
+        </div>
+
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-sm font-black text-white transition group-open:rotate-180">
+          ↓
+        </span>
+      </summary>
+
+      <div className="mt-4">{children}</div>
+    </details>
+  );
+}
+
+function SummaryCard({
+  title,
+  value,
+  active,
+}: {
+  title: string;
+  value: number;
+  active: number;
+}) {
+  return (
+    <div className="rounded-[1.5rem] border border-blue-100 bg-white p-4 shadow-sm">
+      <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
+        {title}
+      </p>
+
+      <p className="mt-2 text-2xl font-black text-slate-900">{value}</p>
+
+      <p className="mt-2 text-xs font-black text-emerald-700">
+        {active} Active
+      </p>
     </div>
   );
 }
@@ -95,6 +182,12 @@ function OptionManager({
 
     setError("");
     setSuccess("");
+
+    if (!name.trim()) {
+      setError("Please enter option name.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -105,7 +198,7 @@ function OptionManager({
         },
         body: JSON.stringify({
           type,
-          name,
+          name: name.trim(),
         }),
       });
 
@@ -174,7 +267,7 @@ function OptionManager({
   const disabledCount = options.filter((item) => !item.isActive).length;
 
   return (
-    <div className="rounded-[2rem] border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
+    <div className="rounded-[1.7rem] border border-blue-100 bg-white p-4 shadow-sm sm:p-5">
       <div>
         <p className="text-xs font-black uppercase tracking-wide text-blue-600">
           Task Dropdown
@@ -232,11 +325,7 @@ function OptionManager({
   );
 }
 
-function CrimeCategoryManager({
-  options,
-}: {
-  options: CrimeCategoryItem[];
-}) {
+function CrimeCategoryManager({ options }: { options: CrimeCategoryItem[] }) {
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -255,6 +344,12 @@ function CrimeCategoryManager({
 
     setError("");
     setSuccess("");
+
+    if (!name.trim()) {
+      setError("Please enter category name.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -265,7 +360,7 @@ function CrimeCategoryManager({
         },
         body: JSON.stringify({
           type: "CRIME_CATEGORY",
-          name,
+          name: name.trim(),
           region,
         }),
       });
@@ -335,7 +430,7 @@ function CrimeCategoryManager({
   const disabledCount = filteredOptions.filter((item) => !item.isActive).length;
 
   return (
-    <div className="rounded-[2rem] border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
+    <div className="rounded-[1.7rem] border border-blue-100 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-wide text-blue-600">
@@ -440,9 +535,9 @@ function OptionRow({
         option.isActive ? "bg-slate-50" : "bg-red-50/60"
       }`}
     >
-      <div>
+      <div className="min-w-0">
         <p
-          className={`font-black ${
+          className={`break-words font-black ${
             option.isActive ? "text-slate-800" : "text-slate-500"
           }`}
         >
@@ -480,9 +575,9 @@ function CrimeCategoryRow({
         option.isActive ? "bg-blue-50/70" : "bg-red-50/60"
       }`}
     >
-      <div>
+      <div className="min-w-0">
         <p
-          className={`font-black ${
+          className={`break-words font-black ${
             option.isActive ? "text-slate-800" : "text-slate-500"
           }`}
         >
@@ -514,7 +609,7 @@ function StatusActionButton({
   onClick: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex shrink-0 items-center gap-2">
       <span
         className={`rounded-full px-3 py-1 text-xs font-black ${
           active
@@ -553,7 +648,9 @@ function SmallStat({
       <p className="text-[11px] font-black uppercase tracking-wide text-blue-400">
         {label}
       </p>
-      <p className="mt-1 text-2xl font-black text-slate-900">{value}</p>
+      <p className="mt-1 break-words text-2xl font-black text-slate-900">
+        {value}
+      </p>
     </div>
   );
 }

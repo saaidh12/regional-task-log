@@ -17,6 +17,15 @@ type ParticipantItem = {
   region?: string;
 };
 
+type AssignedTaskItem = {
+  assignedToUserId?: string;
+  assignedToName: string;
+  assignedToServiceNo?: string;
+  assignedToRegion?: string;
+  taskDetails: string;
+  isCompleted?: boolean;
+};
+
 type YaumiyyaEditData = {
   id: string;
   date: string;
@@ -25,8 +34,8 @@ type YaumiyyaEditData = {
   region: string;
   meetingTitle: string;
   meetingNotes: string;
-  assignedTasks: string;
   participants: ParticipantItem[];
+  assignedTaskItems: AssignedTaskItem[];
 };
 
 export default function EditYaumiyyaForm({
@@ -47,12 +56,17 @@ export default function EditYaumiyyaForm({
   const [finishedTime, setFinishedTime] = useState(record.finishedTime);
   const [meetingTitle, setMeetingTitle] = useState(record.meetingTitle);
   const [meetingNotes, setMeetingNotes] = useState(record.meetingNotes);
-  const [assignedTasks, setAssignedTasks] = useState(record.assignedTasks);
 
   const [participants, setParticipants] = useState<ParticipantItem[]>(
     record.participants
   );
   const [manualParticipant, setManualParticipant] = useState("");
+
+  const [assignedTaskUserId, setAssignedTaskUserId] = useState("");
+  const [assignedTaskDetails, setAssignedTaskDetails] = useState("");
+  const [assignedTaskItems, setAssignedTaskItems] = useState<AssignedTaskItem[]>(
+    record.assignedTaskItems
+  );
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -103,6 +117,50 @@ export default function EditYaumiyyaForm({
     setParticipants(participants.filter((_, i) => i !== index));
   }
 
+  function addAssignedTask() {
+    const user = users.find((item) => item.id === assignedTaskUserId);
+    const details = assignedTaskDetails.trim();
+
+    if (!user) {
+      setError("Please select a user to assign the task.");
+      return;
+    }
+
+    if (!details) {
+      setError("Please write assigned task details.");
+      return;
+    }
+
+    setError("");
+
+    setAssignedTaskItems([
+      ...assignedTaskItems,
+      {
+        assignedToUserId: user.id,
+        assignedToName: user.fullName,
+        assignedToServiceNo: user.serviceNumber,
+        assignedToRegion: user.region || undefined,
+        taskDetails: details,
+        isCompleted: false,
+      },
+    ]);
+
+    setAssignedTaskUserId("");
+    setAssignedTaskDetails("");
+  }
+
+  function removeAssignedTask(index: number) {
+    setAssignedTaskItems(assignedTaskItems.filter((_, i) => i !== index));
+  }
+
+  function toggleAssignedTask(index: number) {
+    setAssignedTaskItems(
+      assignedTaskItems.map((task, i) =>
+        i === index ? { ...task, isCompleted: !task.isCompleted } : task
+      )
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -122,8 +180,8 @@ export default function EditYaumiyyaForm({
           finishedTime,
           meetingTitle,
           meetingNotes,
-          assignedTasks,
           participants,
+          assignedTaskItems,
         }),
       });
 
@@ -193,7 +251,7 @@ export default function EditYaumiyyaForm({
             </h2>
 
             <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-blue-100">
-              Update meeting participants, notes and assigned tasks in Dhivehi.
+              Update meeting participants, notes and assigned user tasks.
             </p>
           </div>
         </div>
@@ -329,16 +387,94 @@ export default function EditYaumiyyaForm({
         <SectionCard
           number="04"
           title="Assigned Tasks"
-          subtitle="Write assigned tasks or follow-up actions in Dhivehi."
+          subtitle="Tag actual users and assign follow-up tasks."
         >
-          <textarea
-            value={assignedTasks}
-            onChange={(e) => setAssignedTasks(e.target.value)}
-            rows={7}
-            dir="auto"
-            placeholder="އަސައިން ކުރެވުނު ޓާސްކް..."
-            className="input dhivehi-text resize-none text-lg leading-9"
-          />
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[260px_1fr_auto]">
+            <select
+              value={assignedTaskUserId}
+              onChange={(e) => setAssignedTaskUserId(e.target.value)}
+              className="input"
+            >
+              <option value="">Select assigned user</option>
+              {visibleUsers.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.fullName} - {user.serviceNumber}
+                </option>
+              ))}
+            </select>
+
+            <textarea
+              value={assignedTaskDetails}
+              onChange={(e) => setAssignedTaskDetails(e.target.value)}
+              rows={2}
+              dir="auto"
+              placeholder="އަސައިން ކުރެވުނު ޓާސްކް..."
+              className="input dhivehi-text resize-none text-base leading-8"
+            />
+
+            <button
+              type="button"
+              onClick={addAssignedTask}
+              className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white hover:bg-blue-700"
+            >
+              Add Task
+            </button>
+          </div>
+
+          {assignedTaskItems.length === 0 ? (
+            <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm font-black text-amber-700">
+              No assigned tasks added yet.
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {assignedTaskItems.map((task, index) => (
+                <div
+                  key={`${task.assignedToName}-${index}`}
+                  className="rounded-[1.5rem] bg-blue-50 p-4"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wide text-blue-500">
+                        Assigned To
+                      </p>
+                      <p className="mt-1 font-black text-slate-900">
+                        {task.assignedToName}
+                        {task.assignedToServiceNo
+                          ? ` (${task.assignedToServiceNo})`
+                          : ""}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleAssignedTask(index)}
+                        className={`rounded-2xl px-4 py-2 text-xs font-black ${
+                          task.isCompleted
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-white text-blue-700"
+                        }`}
+                      >
+                        {task.isCompleted ? "Completed" : "Pending"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => removeAssignedTask(index)}
+                        className="rounded-2xl bg-red-50 px-4 py-2 text-xs font-black text-red-700 hover:bg-red-100"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="dhivehi-text mt-3 whitespace-pre-wrap break-words text-base leading-8 text-slate-800 [overflow-wrap:anywhere]">
+                    {task.taskDetails}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </SectionCard>
 
         {error && (
@@ -393,13 +529,19 @@ export default function EditYaumiyyaForm({
             <Info label="Start Time" value={startTime || "-"} />
             <Info label="Finished Time" value={finishedTime || "-"} />
             <Info label="Participants" value={String(participants.length)} />
+            <Info label="Assigned Tasks" value={String(assignedTaskItems.length)} />
+            <Info
+              label="Completed Assigned"
+              value={String(
+                assignedTaskItems.filter((task) => task.isCompleted).length
+              )}
+            />
             <Info label="Title" value={meetingTitle || "-"} />
           </div>
         </div>
 
         <div className="rounded-[2rem] border border-blue-100 bg-blue-50 p-5 text-sm font-semibold leading-6 text-blue-900">
-          Yaumiyya belongs to the whole regional meeting record. No island or
-          atoll selection is needed.
+          Yaumiyya assigned tasks can now be tagged to actual user accounts.
         </div>
       </aside>
     </div>

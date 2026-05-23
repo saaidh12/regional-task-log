@@ -3,8 +3,6 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const REGIONS = ["SPR", "SCPR", "NCPR", "NPR", "UNPR"] as const;
-
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -32,7 +30,10 @@ export async function PATCH(
       );
     }
 
-    if (session.role !== "MAIN_ADMIN" && existingRecord.region !== session.region) {
+    if (
+      session.role !== "MAIN_ADMIN" &&
+      existingRecord.region !== session.region
+    ) {
       return NextResponse.json(
         { error: "You cannot edit another region's Yaumiyya record." },
         { status: 403 }
@@ -46,7 +47,6 @@ export async function PATCH(
     const finishedTime = String(body.finishedTime || "").trim();
     const meetingTitle = String(body.meetingTitle || "").trim();
     const meetingNotes = String(body.meetingNotes || "").trim();
-    const assignedTasks = String(body.assignedTasks || "").trim();
 
     const participants: {
       userId?: string;
@@ -81,26 +81,59 @@ export async function PATCH(
           )
       : [];
 
-    const region = existingRecord.region;
+    const assignedTaskItems: {
+      assignedToUserId?: string;
+      assignedToName: string;
+      assignedToServiceNo?: string;
+      assignedToRegion?: string;
+      taskDetails: string;
+      isCompleted?: boolean;
+    }[] = Array.isArray(body.assignedTaskItems)
+      ? body.assignedTaskItems
+          .map((item: unknown) => {
+            const task = item as {
+              assignedToUserId?: unknown;
+              assignedToName?: unknown;
+              assignedToServiceNo?: unknown;
+              assignedToRegion?: unknown;
+              taskDetails?: unknown;
+              isCompleted?: unknown;
+            };
 
-    if (!date || !region || !meetingNotes) {
+            return {
+              assignedToUserId: task.assignedToUserId
+                ? String(task.assignedToUserId).trim()
+                : undefined,
+              assignedToName: String(task.assignedToName || "").trim(),
+              assignedToServiceNo: task.assignedToServiceNo
+                ? String(task.assignedToServiceNo).trim()
+                : undefined,
+              assignedToRegion: task.assignedToRegion
+                ? String(task.assignedToRegion).trim()
+                : undefined,
+              taskDetails: String(task.taskDetails || "").trim(),
+              isCompleted: Boolean(task.isCompleted),
+            };
+          })
+          .filter(
+            (item: { assignedToName: string; taskDetails: string }) =>
+              item.assignedToName.length > 0 && item.taskDetails.length > 0
+          )
+      : [];
+
+    if (!date || !meetingNotes) {
       return NextResponse.json(
         { error: "Please fill date and meeting notes." },
         { status: 400 }
       );
     }
 
-    if (!REGIONS.includes(region as any)) {
-      return NextResponse.json(
-        { error: "Invalid region." },
-        { status: 400 }
-      );
-    }
-
     await prisma.yaumiyyaParticipant.deleteMany({
-      where: {
-        yaumiyyaId: id,
-      },
+      where: { yaumiyyaId: id },
+    });
+
+    await prisma.yaumiyyaAssignedTask.deleteMany({
+      where: { yaumiyyaId: id },
     });
 
     const record = await prisma.yaumiyyaRecord.update({
@@ -111,7 +144,7 @@ export async function PATCH(
         finishedTime: finishedTime || null,
         meetingTitle: meetingTitle || null,
         meetingNotes,
-        assignedTasks: assignedTasks || null,
+        assignedTasks: null,
 
         participants: {
           create: participants.map((participant) => ({
@@ -119,6 +152,19 @@ export async function PATCH(
             displayName: participant.displayName,
             serviceNo: participant.serviceNo || null,
             region: participant.region ? (participant.region as any) : null,
+          })),
+        },
+
+        assignedTaskItems: {
+          create: assignedTaskItems.map((task) => ({
+            assignedToUserId: task.assignedToUserId || null,
+            assignedToName: task.assignedToName,
+            assignedToServiceNo: task.assignedToServiceNo || null,
+            assignedToRegion: task.assignedToRegion
+              ? (task.assignedToRegion as any)
+              : null,
+            taskDetails: task.taskDetails,
+            isCompleted: Boolean(task.isCompleted),
           })),
         },
       },

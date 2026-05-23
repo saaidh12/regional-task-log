@@ -1,25 +1,38 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
 export async function PATCH(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
 
-    if (!session || session.role !== "MAIN_ADMIN") {
+    if (!session) {
       return NextResponse.json(
-        { error: "Only main admin can update user status." },
+        { error: "You are not logged in." },
+        { status: 401 }
+      );
+    }
+
+    if (session.role !== "MAIN_ADMIN") {
+      return NextResponse.json(
+        { error: "Only Main Admin can update user status." },
         { status: 403 }
       );
     }
 
-    const { id } = await params;
-    const body = await req.json();
-    const isActive = Boolean(body.isActive);
+    const { id } = await context.params;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "User ID is missing." },
+        { status: 400 }
+      );
+    }
 
     if (id === session.id) {
       return NextResponse.json(
@@ -28,11 +41,36 @@ export async function PATCH(
       );
     }
 
-    const user = await prisma.user.update({
+    const body = await req.json();
+
+    if (typeof body.isActive !== "boolean") {
+      return NextResponse.json(
+        { error: "Invalid status value." },
+        { status: 400 }
+      );
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        fullName: true,
+        isActive: true,
+      },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json(
+        { error: "User not found." },
+        { status: 404 }
+      );
+    }
+
+    const updatedUser = await prisma.user.update({
       where: { id },
       data: {
-        isActive,
-        disabledAt: isActive ? null : new Date(),
+        isActive: body.isActive,
+        disabledAt: body.isActive ? null : new Date(),
       },
       select: {
         id: true,
@@ -42,15 +80,21 @@ export async function PATCH(
         region: true,
         role: true,
         isActive: true,
+        disabledAt: true,
       },
     });
 
-    return NextResponse.json({ success: true, user });
+    revalidatePath("/users");
+
+    return NextResponse.json({
+      success: true,
+      user: updatedUser,
+    });
   } catch (error) {
-    console.error(error);
+    console.error("USER_STATUS_UPDATE_ERROR", error);
 
     return NextResponse.json(
-      { error: "Could not update user status." },
+      { error: "Could not update user status. Check server logs." },
       { status: 500 }
     );
   }

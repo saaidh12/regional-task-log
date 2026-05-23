@@ -82,111 +82,141 @@ export default function InformationClient({
   return (
     <div className="pb-24 lg:pb-8">
       <section className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
-        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-black text-slate-950">
+        <div className="mb-5 overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600 text-white shadow-xl shadow-blue-900/20">
+          <div className="p-5 sm:p-7">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-100">
               Information Shared
+            </p>
+
+            <h1 className="mt-3 text-3xl font-black tracking-tight">
+              Shared Information Records
             </h1>
-            <p className="mt-2 text-sm font-bold text-slate-500">
-              Information received and shared to regions or areas
-            </p>
-          </div>
 
-          <Link
-            href="/information/new"
-            className="rounded-2xl bg-blue-700 px-5 py-3 text-center text-sm font-black text-white shadow-lg shadow-blue-700/20 hover:bg-blue-800"
-          >
-            + Add Information
-          </Link>
-        </div>
-
-        <div className="rounded-[2rem] border border-blue-100 bg-white p-4 shadow-sm">
-          <form className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_150px_150px_170px_170px_auto]">
-            <input
-              name="q"
-              defaultValue={filters.q}
-              placeholder="Search title, source, details, area..."
-              className="input"
-            />
-
-            <input
-              type="date"
-              name="from"
-              defaultValue={filters.from}
-              className="input"
-            />
-
-            <input
-              type="date"
-              name="to"
-              defaultValue={filters.to}
-              className="input"
-            />
-
-            <select
-              name="priority"
-              defaultValue={filters.priority}
-              className="input"
-            >
-              {PRIORITIES.map((item) => (
-                <option key={item} value={item}>
-                  {item === "ALL" ? "All Priority" : item}
-                </option>
-              ))}
-            </select>
-
-            {session.role === "MAIN_ADMIN" ? (
-              <select name="area" defaultValue={filters.area} className="input">
-                <option value="ALL">All Areas</option>
-                {areaOptions.map((item) => (
-                  <option key={item.id} value={item.name}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                name="area"
-                value={session.region || ""}
-                readOnly
-                className="input bg-slate-100"
-              />
-            )}
-
-            <button className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white hover:bg-slate-800">
-              Filter
-            </button>
-          </form>
-
-          <div className="mt-4 flex flex-col gap-3 text-xs font-bold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-            <p>
-              Showing page {pagination.currentPage} of {pagination.totalPages} •{" "}
-              {pagination.totalRecords} total records
+            <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-blue-100">
+              Information received and shared to regions or operational areas.
             </p>
 
-            <div className="flex items-center gap-5">
-              <Link href="/information/new" className="text-blue-600">
-                Add New
-              </Link>
-              <Link href="/information" className="text-blue-600">
-                Clear
+            <div className="mt-5">
+              <Link
+                href="/information/new"
+                className="inline-flex rounded-2xl bg-white px-5 py-3 text-center text-sm font-black text-blue-700 shadow-lg shadow-blue-950/20 hover:bg-blue-50"
+              >
+                + Add Information
               </Link>
             </div>
           </div>
         </div>
 
-        <div className="mt-5 overflow-hidden rounded-[2rem] border border-blue-100 bg-white shadow-sm">
-          <div className="hidden grid-cols-[130px_130px_170px_1fr_170px_90px] gap-4 border-b border-slate-100 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-wide text-slate-500 lg:grid">
-            <div>Date</div>
-            <div>Priority</div>
-            <div>Shared To</div>
-            <div>Title</div>
-            <div>Added By</div>
-            <div className="text-center">View</div>
-          </div>
+        <details className="group rounded-[2rem] border border-blue-100 bg-white p-3 shadow-sm">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-[1.5rem] bg-blue-50 px-4 py-4">
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-900">Filters</p>
+              <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
+                Search information, date, priority and shared area
+              </p>
+            </div>
 
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-sm font-black text-white transition group-open:rotate-180">
+              ↓
+            </span>
+          </summary>
+
+          <div className="mt-3">
+            <form className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_150px_150px_170px_170px_auto]">
+              <Field label="Search">
+                <input
+                  name="q"
+                  defaultValue={filters.q}
+                  placeholder="Title, source, details, area..."
+                  className="input w-full"
+                />
+              </Field>
+
+              <Field label="From Date">
+                <input
+                  type="date"
+                  name="from"
+                  defaultValue={filters.from}
+                  className="input w-full"
+                />
+              </Field>
+
+              <Field label="To Date">
+                <input
+                  type="date"
+                  name="to"
+                  defaultValue={filters.to}
+                  className="input w-full"
+                />
+              </Field>
+
+              <Field label="Priority">
+                <select
+                  name="priority"
+                  defaultValue={filters.priority}
+                  className="input w-full"
+                >
+                  {PRIORITIES.map((item) => (
+                    <option key={item} value={item}>
+                      {item === "ALL" ? "All Priority" : item}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Shared Area">
+                {session.role === "MAIN_ADMIN" ? (
+                  <select
+                    name="area"
+                    defaultValue={filters.area}
+                    className="input w-full"
+                  >
+                    <option value="ALL">All Areas</option>
+                    {areaOptions.map((item) => (
+                      <option key={item.id} value={item.name}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    name="area"
+                    value={session.region || ""}
+                    readOnly
+                    className="input w-full bg-slate-100"
+                  />
+                )}
+              </Field>
+
+              <div className="flex items-end">
+                <button className="w-full rounded-2xl bg-blue-700 px-5 py-3 text-sm font-black text-white hover:bg-blue-800">
+                  Filter
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-4 flex flex-col gap-3 text-xs font-bold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                Showing page {pagination.currentPage} of{" "}
+                {pagination.totalPages} • {pagination.totalRecords} total
+                records
+              </p>
+
+              <div className="flex items-center gap-5">
+                <Link href="/information/new" className="text-blue-600">
+                  Add New
+                </Link>
+                <Link href="/information" className="text-blue-600">
+                  Clear
+                </Link>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
           {records.length === 0 ? (
-            <div className="p-8 text-center">
+            <div className="rounded-[2rem] border border-blue-100 bg-white p-8 text-center shadow-sm xl:col-span-2">
               <p className="text-lg font-black text-slate-900">
                 No information records found.
               </p>
@@ -195,15 +225,13 @@ export default function InformationClient({
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
-              {records.map((record) => (
-                <InformationRow
-                  key={record.id}
-                  record={record}
-                  onView={() => setSelectedRecord(record)}
-                />
-              ))}
-            </div>
+            records.map((record) => (
+              <InformationCard
+                key={record.id}
+                record={record}
+                onView={() => setSelectedRecord(record)}
+              />
+            ))
           )}
         </div>
 
@@ -246,7 +274,7 @@ export default function InformationClient({
   );
 }
 
-function InformationRow({
+function InformationCard({
   record,
   onView,
 }: {
@@ -258,22 +286,24 @@ function InformationRow({
     : "-";
 
   return (
-    <div className="grid grid-cols-1 gap-4 px-5 py-5 lg:grid-cols-[130px_130px_170px_1fr_170px_90px] lg:items-center">
-      <div>
-        <p className="lg:hidden text-xs font-black uppercase tracking-wide text-slate-400">
-          Date
-        </p>
-        <p className="text-sm font-bold text-slate-800">
-          {formatDate(record.date)}
-        </p>
-      </div>
+    <div className="rounded-[2rem] border border-blue-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-950/10">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-wide text-blue-600">
+            {formatDate(record.date)}
+          </p>
 
-      <div>
-        <p className="lg:hidden text-xs font-black uppercase tracking-wide text-slate-400">
-          Priority
-        </p>
+          <h2 className="mt-2 line-clamp-2 break-words text-xl font-black text-slate-900 [overflow-wrap:anywhere]">
+            {record.title}
+          </h2>
+
+          <p className="mt-1 line-clamp-1 break-words text-xs font-bold text-slate-500">
+            Shared To: {sharedTo}
+          </p>
+        </div>
+
         <span
-          className={`inline-flex rounded-2xl px-3 py-2 text-xs font-black ${priorityClass(
+          className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-black ${priorityClass(
             record.priority
           )}`}
         >
@@ -281,48 +311,28 @@ function InformationRow({
         </span>
       </div>
 
-      <div>
-        <p className="lg:hidden text-xs font-black uppercase tracking-wide text-slate-400">
-          Shared To
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <MiniInfo label="Source" value={record.source || "-"} />
+        <MiniInfo label="Created By" value={record.createdByName} />
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-2xl bg-slate-50 p-4">
+        <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+          Details
         </p>
-        <p className="break-words text-sm font-black text-slate-900">
-          {sharedTo}
+
+        <p className="dhivehi-text line-clamp-2 mt-2 max-w-full whitespace-pre-wrap break-words text-base leading-7 text-slate-900 [overflow-wrap:anywhere]">
+          {record.details}
         </p>
       </div>
 
-      <div className="min-w-0">
-        <p className="lg:hidden text-xs font-black uppercase tracking-wide text-slate-400">
-          Title
-        </p>
-        <p className="line-clamp-2 break-words text-sm font-black text-slate-950">
-          {record.title}
-        </p>
-        <p className="mt-1 line-clamp-1 break-words text-xs font-semibold text-slate-500">
-          Source: {record.source || "-"}
-        </p>
-      </div>
-
-      <div>
-        <p className="lg:hidden text-xs font-black uppercase tracking-wide text-slate-400">
-          Added By
-        </p>
-        <p className="truncate text-sm font-black text-slate-900">
-          {record.createdByName}
-        </p>
-        <p className="text-xs font-bold text-slate-400">
-          {record.createdByServiceNumber}
-        </p>
-      </div>
-
-      <div className="flex lg:justify-center">
-        <button
-          onClick={onView}
-          className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-lg hover:bg-blue-100"
-          title="View Information"
-        >
-          👁
-        </button>
-      </div>
+      <button
+        onClick={onView}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-700 px-4 py-3 text-center text-sm font-black text-white hover:bg-blue-800"
+      >
+        <span>👁</span>
+        View Information
+      </button>
     </div>
   );
 }
@@ -417,6 +427,36 @@ function InformationModal({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-400">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function MiniInfo({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-slate-50 p-3">
+      <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
+        {label}
+      </p>
+      <p className="mt-1 line-clamp-1 break-words text-sm font-black text-slate-900">
+        {value}
+      </p>
     </div>
   );
 }

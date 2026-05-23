@@ -124,72 +124,97 @@ export default function PersonDatabaseClient({
           </div>
         </div>
 
-        <div className="mt-5 rounded-[2rem] border border-blue-100 bg-white p-4 shadow-sm">
-          <form className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_150px_150px_180px_auto]">
-            <input
-              name="q"
-              defaultValue={filters.q}
-              placeholder="Search name, nickname, ID, mobile, address..."
-              className="input"
-            />
+        <details className="group mt-5 rounded-[2rem] border border-blue-100 bg-white p-3 shadow-sm">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-[1.5rem] bg-blue-50 px-4 py-4">
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-900">Filters</p>
+              <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
+                Search name, ID, mobile, island, region and crime category
+              </p>
+            </div>
 
-            {session.role === "MAIN_ADMIN" ? (
-              <select
-                name="region"
-                defaultValue={filters.region}
-                className="input"
-              >
-                {REGIONS.map((item) => (
-                  <option key={item} value={item}>
-                    {item === "ALL" ? "All Regions" : item}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                name="region"
-                value={session.region || ""}
-                readOnly
-                className="input bg-slate-100"
-              />
-            )}
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-sm font-black text-white transition group-open:rotate-180">
+              ↓
+            </span>
+          </summary>
 
-            <input
-              name="island"
-              defaultValue={filters.island}
-              placeholder="Island"
-              className="input"
-            />
+          <div className="mt-3">
+            <form className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_150px_150px_180px_auto]">
+              <Field label="Search">
+                <input
+                  name="q"
+                  defaultValue={filters.q}
+                  placeholder="Name, nickname, ID, mobile, address..."
+                  className="input w-full"
+                />
+              </Field>
 
-            <select
-              name="category"
-              defaultValue={filters.category}
-              className="input"
-            >
-              <option value="ALL">All Categories</option>
-              {visibleCategories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.region} - {category.name}
-                </option>
-              ))}
-            </select>
+              <Field label="Region">
+                {session.role === "MAIN_ADMIN" ? (
+                  <select
+                    name="region"
+                    defaultValue={filters.region}
+                    className="input w-full"
+                  >
+                    {REGIONS.map((item) => (
+                      <option key={item} value={item}>
+                        {item === "ALL" ? "All Regions" : item}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    name="region"
+                    value={session.region || ""}
+                    readOnly
+                    className="input w-full bg-slate-100"
+                  />
+                )}
+              </Field>
 
-            <button className="rounded-2xl bg-blue-700 px-5 py-3 text-sm font-black text-white hover:bg-blue-800">
-              Filter
-            </button>
-          </form>
+              <Field label="Island">
+                <input
+                  name="island"
+                  defaultValue={filters.island}
+                  placeholder="Island"
+                  className="input w-full"
+                />
+              </Field>
 
-          <div className="mt-3 flex flex-col gap-3 text-xs font-bold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-            <p>
-              Showing page {pagination.currentPage} of {pagination.totalPages} •{" "}
-              {pagination.totalPeople} total records
-            </p>
+              <Field label="Crime Category">
+                <select
+                  name="category"
+                  defaultValue={filters.category}
+                  className="input w-full"
+                >
+                  <option value="ALL">All Categories</option>
+                  {visibleCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.region} - {category.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
 
-            <Link href="/database" className="text-blue-600">
-              Clear Filters
-            </Link>
+              <div className="flex items-end">
+                <button className="w-full rounded-2xl bg-blue-700 px-5 py-3 text-sm font-black text-white hover:bg-blue-800">
+                  Filter
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-3 flex flex-col gap-3 text-xs font-bold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                Showing page {pagination.currentPage} of{" "}
+                {pagination.totalPages} • {pagination.totalPeople} total records
+              </p>
+
+              <Link href="/database" className="text-blue-600">
+                Clear Filters
+              </Link>
+            </div>
           </div>
-        </div>
+        </details>
 
         <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {people.length === 0 ? (
@@ -350,6 +375,42 @@ function PersonModal({
   person: PersonItem;
   onClose: () => void;
 }) {
+  const [copied, setCopied] = useState("");
+
+  const nicknames = person.nicknames.map((item) => item.name).join(", ");
+  const categories = person.crimeCategories.map((item) => item.name).join(", ");
+
+  const recordText = buildPersonRecordText(person);
+
+  async function copyText(label: string, text: string) {
+    try {
+      await navigator.clipboard.writeText(text || "-");
+      setCopied(label);
+
+      setTimeout(() => {
+        setCopied("");
+      }, 1800);
+    } catch {
+      alert("Unable to copy. Please try again.");
+    }
+  }
+
+  async function shareRecord() {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: person.fullName,
+          text: recordText,
+        });
+        return;
+      }
+
+      await copyText("Full record copied", recordText);
+    } catch {
+      // User cancelled share; no need to show error.
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
       <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2rem]">
@@ -385,7 +446,43 @@ function PersonModal({
         </div>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-5">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="overflow-hidden rounded-[2rem] border border-blue-100 bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600 text-white shadow-xl shadow-blue-900/10">
+            <div className="p-5 sm:p-6">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+                <PersonPhoto person={person} size="share" />
+
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-100">
+                    Regional Database Card
+                  </p>
+
+                  <h3 className="mt-2 break-words text-3xl font-black">
+                    {person.fullName}
+                  </h3>
+
+                  {nicknames && (
+                    <p className="mt-2 break-words text-sm font-bold text-blue-100">
+                      AKA: {nicknames}
+                    </p>
+                  )}
+
+                  <p className="mt-3 text-sm font-bold text-blue-100">
+                    {person.region}
+                    {person.atoll ? ` • ${person.atoll}` : ""}
+                    {person.island ? ` • ${person.island}` : ""}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <CardInfo label="ID Number" value={person.idNumber || "-"} />
+                <CardInfo label="Mobile" value={person.mobileNumber || "-"} />
+                <CardInfo label="Categories" value={categories || "-"} />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
             <Info label="Region" value={person.region} />
             <Info label="Atoll" value={person.atoll || "-"} />
             <Info label="Island" value={person.island || "-"} />
@@ -394,6 +491,44 @@ function PersonModal({
             <Info label="Address" value={person.address || "-"} />
             <Info label="Created By" value={person.createdByName} />
             <Info label="Service No" value={person.createdByServiceNumber} />
+          </div>
+
+          <div className="mt-4 rounded-[1.5rem] border border-blue-100 bg-white p-4 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+              Copy / Share
+            </p>
+
+            {copied && (
+              <p className="mt-2 rounded-2xl bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700">
+                {copied}
+              </p>
+            )}
+
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <ActionButton
+                label="Copy Full"
+                onClick={() => copyText("Full record copied", recordText)}
+              />
+              <ActionButton label="Share Card" onClick={shareRecord} />
+              <ActionButton
+                label="Copy ID"
+                onClick={() =>
+                  copyText("ID number copied", person.idNumber || "-")
+                }
+              />
+              <ActionButton
+                label="Copy Mobile"
+                onClick={() =>
+                  copyText("Mobile number copied", person.mobileNumber || "-")
+                }
+              />
+              <ActionButton
+                label="Copy Address"
+                onClick={() =>
+                  copyText("Address copied", person.address || "-")
+                }
+              />
+            </div>
           </div>
 
           <TagSection
@@ -446,6 +581,80 @@ function PersonModal({
   );
 }
 
+function buildPersonRecordText(person: PersonItem) {
+  const nicknames = person.nicknames.map((item) => item.name).join(", ");
+  const categories = person.crimeCategories.map((item) => item.name).join(", ");
+
+  return [
+    "REGIONAL DATABASE RECORD",
+    "",
+    `Name: ${person.fullName || "-"}`,
+    `Nicknames: ${nicknames || "-"}`,
+    `ID Number: ${person.idNumber || "-"}`,
+    `Mobile: ${person.mobileNumber || "-"}`,
+    `Region: ${person.region || "-"}`,
+    `Atoll: ${person.atoll || "-"}`,
+    `Island: ${person.island || "-"}`,
+    `Address: ${person.address || "-"}`,
+    `Crime Categories: ${categories || "-"}`,
+    `Notes: ${person.notes || "-"}`,
+    "",
+    `Created By: ${person.createdByName || "-"} (${
+      person.createdByServiceNumber || "-"
+    })`,
+    `Created At: ${formatDateTime(person.createdAt)}`,
+    `Updated At: ${formatDateTime(person.updatedAt)}`,
+  ].join("\n");
+}
+
+function ActionButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-2xl bg-blue-50 px-4 py-3 text-sm font-black text-blue-700 hover:bg-blue-100"
+    >
+      {label}
+    </button>
+  );
+}
+
+function CardInfo({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/15">
+      <p className="text-[10px] font-black uppercase tracking-wide text-blue-100">
+        {label}
+      </p>
+      <p className="mt-1 break-words text-sm font-black text-white [overflow-wrap:anywhere]">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-400">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
 function TagSection({
   title,
   items,
@@ -484,24 +693,26 @@ function PersonPhoto({
   size,
 }: {
   person: PersonItem;
-  size: "card" | "modal";
+  size: "card" | "modal" | "share";
 }) {
   const className =
-    size === "modal"
-      ? "h-20 w-20 rounded-[1.5rem]"
-      : "h-16 w-16 rounded-2xl";
+    size === "share"
+      ? "h-28 w-28 rounded-[2rem]"
+      : size === "modal"
+        ? "h-20 w-20 rounded-[1.5rem]"
+        : "h-16 w-16 rounded-2xl";
 
   if (person.photoUrl) {
     return (
       <div
-        className={`${className} relative shrink-0 overflow-hidden bg-blue-50`}
+        className={`${className} relative shrink-0 overflow-hidden bg-blue-50 ring-4 ring-white/20`}
       >
         <Image
           src={person.photoUrl}
           alt={person.fullName}
           fill
           className="object-cover"
-          sizes={size === "modal" ? "80px" : "64px"}
+          sizes={size === "share" ? "112px" : size === "modal" ? "80px" : "64px"}
         />
       </div>
     );
@@ -509,7 +720,7 @@ function PersonPhoto({
 
   return (
     <div
-      className={`${className} flex shrink-0 items-center justify-center bg-gradient-to-br from-blue-700 to-cyan-500 text-xl font-black text-white`}
+      className={`${className} flex shrink-0 items-center justify-center bg-gradient-to-br from-blue-700 to-cyan-500 text-xl font-black text-white ring-4 ring-white/20`}
     >
       {person.fullName.slice(0, 1).toUpperCase()}
     </div>

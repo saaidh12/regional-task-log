@@ -246,6 +246,11 @@ model YaumiyyaRecord {
   meetingTitle String?
 
   meetingNotes  String
+
+  /*
+    Keep this old text field temporarily so old Yaumiyya records do not break.
+    New assigned tasks will use YaumiyyaAssignedTask.
+  */
   assignedTasks String?
 
   createdByUserId        String
@@ -255,8 +260,9 @@ model YaumiyyaRecord {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  createdBy    User                    @relation(fields: [createdByUserId], references: [id])
-  participants YaumiyyaParticipant[]
+  createdBy         User                    @relation(fields: [createdByUserId], references: [id])
+  participants      YaumiyyaParticipant[]
+  assignedTaskItems YaumiyyaAssignedTask[]
 
   @@index([region])
   @@index([date])
@@ -275,6 +281,29 @@ model YaumiyyaParticipant {
 
   @@index([yaumiyyaId])
   @@index([displayName])
+}
+
+model YaumiyyaAssignedTask {
+  id String @id @default(cuid())
+
+  yaumiyyaId String
+
+  assignedToUserId    String?
+  assignedToName      String
+  assignedToServiceNo String?
+  assignedToRegion    Region?
+
+  taskDetails String
+  isCompleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  yaumiyya YaumiyyaRecord @relation(fields: [yaumiyyaId], references: [id], onDelete: Cascade)
+
+  @@index([yaumiyyaId])
+  @@index([assignedToUserId])
+  @@index([assignedToName])
 }
 
 /*

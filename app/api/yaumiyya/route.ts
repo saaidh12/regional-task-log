@@ -24,7 +24,6 @@ export async function POST(req: Request) {
     const regionFromBody = String(body.region || "").trim();
     const meetingTitle = String(body.meetingTitle || "").trim();
     const meetingNotes = String(body.meetingNotes || "").trim();
-    const assignedTasks = String(body.assignedTasks || "").trim();
 
     const participants: {
       userId?: string;
@@ -59,12 +58,46 @@ export async function POST(req: Request) {
           )
       : [];
 
-    /*
-      Yaumiyya belongs to the whole regional meeting record.
-      Staff: saved under their own region.
-      Main Admin: if no region is selected, fallback to NPR.
-      Region is used only internally for permission/filtering.
-    */
+    const assignedTaskItems: {
+      assignedToUserId?: string;
+      assignedToName: string;
+      assignedToServiceNo?: string;
+      assignedToRegion?: string;
+      taskDetails: string;
+      isCompleted?: boolean;
+    }[] = Array.isArray(body.assignedTaskItems)
+      ? body.assignedTaskItems
+          .map((item: unknown) => {
+            const task = item as {
+              assignedToUserId?: unknown;
+              assignedToName?: unknown;
+              assignedToServiceNo?: unknown;
+              assignedToRegion?: unknown;
+              taskDetails?: unknown;
+              isCompleted?: unknown;
+            };
+
+            return {
+              assignedToUserId: task.assignedToUserId
+                ? String(task.assignedToUserId).trim()
+                : undefined,
+              assignedToName: String(task.assignedToName || "").trim(),
+              assignedToServiceNo: task.assignedToServiceNo
+                ? String(task.assignedToServiceNo).trim()
+                : undefined,
+              assignedToRegion: task.assignedToRegion
+                ? String(task.assignedToRegion).trim()
+                : undefined,
+              taskDetails: String(task.taskDetails || "").trim(),
+              isCompleted: Boolean(task.isCompleted),
+            };
+          })
+          .filter(
+            (item: { assignedToName: string; taskDetails: string }) =>
+              item.assignedToName.length > 0 && item.taskDetails.length > 0
+          )
+      : [];
+
     const region = session.region || regionFromBody || "NPR";
 
     if (!date || !region || !meetingNotes) {
@@ -89,7 +122,7 @@ export async function POST(req: Request) {
         region: region as any,
         meetingTitle: meetingTitle || null,
         meetingNotes,
-        assignedTasks: assignedTasks || null,
+        assignedTasks: null,
 
         createdByUserId: session.id,
         createdByName: session.fullName,
@@ -101,6 +134,19 @@ export async function POST(req: Request) {
             displayName: participant.displayName,
             serviceNo: participant.serviceNo || null,
             region: participant.region ? (participant.region as any) : null,
+          })),
+        },
+
+        assignedTaskItems: {
+          create: assignedTaskItems.map((task) => ({
+            assignedToUserId: task.assignedToUserId || null,
+            assignedToName: task.assignedToName,
+            assignedToServiceNo: task.assignedToServiceNo || null,
+            assignedToRegion: task.assignedToRegion
+              ? (task.assignedToRegion as any)
+              : null,
+            taskDetails: task.taskDetails,
+            isCompleted: Boolean(task.isCompleted),
           })),
         },
       },

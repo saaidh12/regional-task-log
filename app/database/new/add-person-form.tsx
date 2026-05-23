@@ -417,7 +417,7 @@ export default function AddPersonForm({
               <input
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="Example: R. Meedhoo / Sikkage"
+                placeholder="Address"
                 className="input"
               />
             </Field>

@@ -4,71 +4,86 @@ import bcrypt from "bcryptjs";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   try {
     const session = await getSession();
 
     if (!session) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "Unauthorized. Please login again." },
-        { status: 401 }
+        401
       );
     }
 
     const body = await req.json();
 
-    const currentPassword = String(body.currentPassword || "");
-    const newPassword = String(body.newPassword || "");
-    const confirmPassword = String(body.confirmPassword || "");
+    const currentPasswordRaw = String(body.currentPassword || "");
+    const newPasswordRaw = String(body.newPassword || "");
+    const confirmPasswordRaw = String(body.confirmPassword || "");
+
+    const currentPassword = currentPasswordRaw.trim();
+    const newPassword = newPasswordRaw.trim();
+    const confirmPassword = confirmPasswordRaw.trim();
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "Please fill all password fields." },
-        { status: 400 }
+        400
       );
     }
 
     if (newPassword.length < 6) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "New password must be at least 6 characters." },
-        { status: 400 }
+        400
       );
     }
 
     if (newPassword !== confirmPassword) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "New password and confirm password do not match." },
-        { status: 400 }
+        400
       );
     }
 
     if (currentPassword === newPassword) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "New password must be different from current password." },
-        { status: 400 }
+        400
       );
     }
 
     const user = await prisma.user.findUnique({
       where: { id: session.id },
+      select: {
+        id: true,
+        passwordHash: true,
+        isActive: true,
+      },
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "User not found." },
-        { status: 404 }
+      return jsonNoStore({ error: "User not found." }, 404);
+    }
+
+    if (!user.isActive) {
+      return jsonNoStore(
+        { error: "This login has been disabled. Contact Main Admin." },
+        403
       );
     }
 
-    const currentPasswordOk = await bcrypt.compare(
-      currentPassword,
-      user.passwordHash
-    );
+    const currentPasswordOk =
+      (await bcrypt.compare(currentPasswordRaw, user.passwordHash)) ||
+      (await bcrypt.compare(currentPassword, user.passwordHash));
 
     if (!currentPasswordOk) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "Current password is incorrect." },
-        { status: 401 }
+        401
       );
     }
 
@@ -82,16 +97,30 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({
+    return jsonNoStore({
       success: true,
       message: "Password changed successfully.",
+      redirectTo: "/dashboard",
     });
   } catch (error) {
     console.error("CHANGE_PASSWORD_ERROR:", error);
 
-    return NextResponse.json(
+    return jsonNoStore(
       { error: "Something went wrong while changing password." },
-      { status: 500 }
+      500
     );
   }
+}
+
+function jsonNoStore(data: unknown, status = 200) {
+  const response = NextResponse.json(data, { status });
+
+  response.headers.set(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, proxy-revalidate"
+  );
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Expires", "0");
+
+  return response;
 }

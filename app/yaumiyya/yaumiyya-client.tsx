@@ -12,6 +12,16 @@ type ParticipantItem = {
   region: string;
 };
 
+type AssignedTaskItem = {
+  id: string;
+  assignedToUserId: string;
+  assignedToName: string;
+  assignedToServiceNo: string;
+  assignedToRegion: string;
+  taskDetails: string;
+  isCompleted: boolean;
+};
+
 export type YaumiyyaItem = {
   id: string;
   date: string;
@@ -26,6 +36,7 @@ export type YaumiyyaItem = {
   createdAt: string;
   updatedAt: string;
   participants: ParticipantItem[];
+  assignedTaskItems: AssignedTaskItem[];
 };
 
 export default function YaumiyyaClient({
@@ -84,7 +95,7 @@ export default function YaumiyyaClient({
                 </h1>
 
                 <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-blue-100">
-                  Search meeting notes, participants, assigned tasks and daily
+                  Search meeting notes, participants, assigned users and daily
                   meeting updates.
                 </p>
               </div>
@@ -99,68 +110,92 @@ export default function YaumiyyaClient({
           </div>
         </div>
 
-        <div className="mt-5 rounded-[2rem] border border-blue-100 bg-white p-4 shadow-sm">
-          <form className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_140px_140px_160px_auto]">
-            <input
-              name="q"
-              defaultValue={filters.q}
-              placeholder="Search title, notes, participant, service no..."
-              className="input"
-            />
+        <details className="group mt-5 rounded-[2rem] border border-blue-100 bg-white p-3 shadow-sm">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-[1.5rem] bg-blue-50 px-4 py-4">
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-900">Filters</p>
+              <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
+                Search title, notes, participant, assigned user, date and region
+              </p>
+            </div>
 
-            <input
-              type="date"
-              name="from"
-              defaultValue={filters.from}
-              className="input"
-              title="From date"
-            />
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-sm font-black text-white transition group-open:rotate-180">
+              ↓
+            </span>
+          </summary>
 
-            <input
-              type="date"
-              name="to"
-              defaultValue={filters.to}
-              className="input"
-              title="To date"
-            />
+          <div className="mt-3">
+            <form className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_160px_160px_160px_auto]">
+              <Field label="Search">
+                <input
+                  name="q"
+                  defaultValue={filters.q}
+                  placeholder="Title, notes, participant, assigned user..."
+                  className="input w-full"
+                />
+              </Field>
 
-            {session.role === "MAIN_ADMIN" ? (
-              <select
-                name="region"
-                defaultValue={filters.region}
-                className="input"
-              >
-                {REGIONS.map((item) => (
-                  <option key={item} value={item}>
-                    {item === "ALL" ? "All Regions" : item}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                name="region"
-                value={session.region || ""}
-                readOnly
-                className="input bg-slate-100"
-              />
-            )}
+              <Field label="From Date">
+                <input
+                  type="date"
+                  name="from"
+                  defaultValue={filters.from}
+                  className="input w-full"
+                />
+              </Field>
 
-            <button className="rounded-2xl bg-blue-700 px-5 py-3 text-sm font-black text-white hover:bg-blue-800">
-              Filter
-            </button>
-          </form>
+              <Field label="To Date">
+                <input
+                  type="date"
+                  name="to"
+                  defaultValue={filters.to}
+                  className="input w-full"
+                />
+              </Field>
 
-          <div className="mt-3 flex flex-col gap-3 text-xs font-bold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-            <p>
-              Showing page {pagination.currentPage} of {pagination.totalPages} •{" "}
-              {pagination.totalRecords} total records
-            </p>
+              <Field label="Region">
+                {session.role === "MAIN_ADMIN" ? (
+                  <select
+                    name="region"
+                    defaultValue={filters.region}
+                    className="input w-full"
+                  >
+                    {REGIONS.map((item) => (
+                      <option key={item} value={item}>
+                        {item === "ALL" ? "All Regions" : item}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    name="region"
+                    value={session.region || ""}
+                    readOnly
+                    className="input w-full bg-slate-100"
+                  />
+                )}
+              </Field>
 
-            <Link href="/yaumiyya" className="text-blue-600">
-              Clear Filters
-            </Link>
+              <div className="flex items-end">
+                <button className="w-full rounded-2xl bg-blue-700 px-5 py-3 text-sm font-black text-white hover:bg-blue-800">
+                  Filter
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-3 flex flex-col gap-3 text-xs font-bold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                Showing page {pagination.currentPage} of{" "}
+                {pagination.totalPages} • {pagination.totalRecords} total
+                records
+              </p>
+
+              <Link href="/yaumiyya" className="text-blue-600">
+                Clear Filters
+              </Link>
+            </div>
           </div>
-        </div>
+        </details>
 
         <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
           {records.length === 0 ? (
@@ -247,6 +282,10 @@ function YaumiyyaCard({
   record: YaumiyyaItem;
   onView: () => void;
 }) {
+  const completedAssigned = record.assignedTaskItems.filter(
+    (task) => task.isCompleted
+  ).length;
+
   return (
     <div className="rounded-[2rem] border border-blue-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-950/10">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -271,11 +310,16 @@ function YaumiyyaCard({
         </span>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MiniInfo label="Notes" value={record.meetingNotes ? "Added" : "Empty"} />
         <MiniInfo
-          label="Assigned Tasks"
-          value={record.assignedTasks ? "Added" : "Empty"}
+          label="Assigned"
+          value={String(record.assignedTaskItems.length)}
+        />
+        <MiniInfo label="Completed" value={String(completedAssigned)} />
+        <MiniInfo
+          label="Pending"
+          value={String(record.assignedTaskItems.length - completedAssigned)}
         />
       </div>
 
@@ -308,6 +352,10 @@ function YaumiyyaModal({
   record: YaumiyyaItem;
   onClose: () => void;
 }) {
+  const completedAssigned = record.assignedTaskItems.filter(
+    (task) => task.isCompleted
+  ).length;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
       <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2rem]">
@@ -343,6 +391,15 @@ function YaumiyyaModal({
             <Info label="Date" value={formatDate(record.date)} />
             <Info label="Start Time" value={record.startTime || "-"} />
             <Info label="Finished Time" value={record.finishedTime || "-"} />
+            <Info
+              label="Participants"
+              value={String(record.participants.length)}
+            />
+            <Info
+              label="Assigned Tasks"
+              value={String(record.assignedTaskItems.length)}
+            />
+            <Info label="Completed" value={String(completedAssigned)} />
             <Info label="Created By" value={record.createdByName} />
             <Info label="Service No" value={record.createdByServiceNumber} />
             <Info label="Created At" value={formatDateTime(record.createdAt)} />
@@ -388,9 +445,48 @@ function YaumiyyaModal({
               Assigned Tasks
             </p>
 
-            <p className="dhivehi-text mt-3 max-w-full whitespace-pre-wrap break-words text-base leading-8 text-slate-900 [overflow-wrap:anywhere] sm:text-lg">
-              {record.assignedTasks || "No assigned tasks added."}
-            </p>
+            {record.assignedTaskItems.length === 0 ? (
+              <p className="mt-3 text-sm font-bold text-blue-900">
+                No assigned tasks added.
+              </p>
+            ) : (
+              <div className="mt-3 space-y-3">
+                {record.assignedTaskItems.map((task) => (
+                  <div
+                    key={task.id}
+                    className="rounded-[1.25rem] bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-[11px] font-black uppercase tracking-wide text-blue-500">
+                          Assigned To
+                        </p>
+                        <p className="mt-1 break-words text-sm font-black text-slate-900">
+                          {task.assignedToName}
+                          {task.assignedToServiceNo
+                            ? ` (${task.assignedToServiceNo})`
+                            : ""}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`rounded-2xl px-3 py-2 text-xs font-black ${
+                          task.isCompleted
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-amber-50 text-amber-700"
+                        }`}
+                      >
+                        {task.isCompleted ? "Completed" : "Pending"}
+                      </span>
+                    </div>
+
+                    <p className="dhivehi-text mt-3 max-w-full whitespace-pre-wrap break-words text-base leading-8 text-slate-900 [overflow-wrap:anywhere]">
+                      {task.taskDetails}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -413,6 +509,23 @@ function YaumiyyaModal({
         </div>
       </div>
     </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-400">
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }
 

@@ -40,6 +40,18 @@ export default async function EditYaumiyyaPage({
           region: true,
         },
       },
+      assignedTaskItems: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          assignedToUserId: true,
+          assignedToName: true,
+          assignedToServiceNo: true,
+          assignedToRegion: true,
+          taskDetails: true,
+          isCompleted: true,
+        },
+      },
     },
   });
 
@@ -65,6 +77,20 @@ export default async function EditYaumiyyaPage({
     },
   });
 
+  const legacyAssignedTaskItems =
+    record.assignedTaskItems.length === 0 && record.assignedTasks
+      ? [
+          {
+            assignedToUserId: undefined,
+            assignedToName: "Unassigned",
+            assignedToServiceNo: undefined,
+            assignedToRegion: undefined,
+            taskDetails: record.assignedTasks,
+            isCompleted: false,
+          },
+        ]
+      : [];
+
   const safeRecord = {
     id: record.id,
     date: record.date.toISOString().slice(0, 10),
@@ -73,13 +99,23 @@ export default async function EditYaumiyyaPage({
     region: record.region,
     meetingTitle: record.meetingTitle || "",
     meetingNotes: record.meetingNotes,
-    assignedTasks: record.assignedTasks || "",
     participants: record.participants.map((participant) => ({
       userId: participant.userId || undefined,
       displayName: participant.displayName,
       serviceNo: participant.serviceNo || undefined,
       region: participant.region || undefined,
     })),
+    assignedTaskItems:
+      record.assignedTaskItems.length > 0
+        ? record.assignedTaskItems.map((task) => ({
+            assignedToUserId: task.assignedToUserId || undefined,
+            assignedToName: task.assignedToName,
+            assignedToServiceNo: task.assignedToServiceNo || undefined,
+            assignedToRegion: task.assignedToRegion || undefined,
+            taskDetails: task.taskDetails,
+            isCompleted: task.isCompleted,
+          }))
+        : legacyAssignedTaskItems,
   };
 
   return (
@@ -95,7 +131,7 @@ export default async function EditYaumiyyaPage({
               Edit Yaumiyya
             </h1>
             <p className="mt-1 text-sm font-semibold text-slate-500">
-              Update meeting notes and assigned tasks.
+              Update meeting notes, participants and assigned user tasks.
             </p>
           </div>
 

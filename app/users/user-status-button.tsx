@@ -14,6 +14,8 @@ export default function UserStatusButton({
   const [loading, setLoading] = useState(false);
 
   async function updateStatus() {
+    const nextStatus = !isActive;
+
     const message = isActive
       ? "Disable this login? Old records will remain in the system."
       : "Enable this login again?";
@@ -30,7 +32,10 @@ export default function UserStatusButton({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ isActive: !isActive }),
+        cache: "no-store",
+        body: JSON.stringify({
+          isActive: nextStatus,
+        }),
       });
 
       const data = await res.json();
@@ -41,8 +46,9 @@ export default function UserStatusButton({
       }
 
       router.refresh();
-    } catch {
-      alert("Network error.");
+    } catch (error) {
+      console.error(error);
+      alert("Network error. Please check API route.");
     } finally {
       setLoading(false);
     }
@@ -50,9 +56,10 @@ export default function UserStatusButton({
 
   return (
     <button
+      type="button"
       onClick={updateStatus}
       disabled={loading}
-      className={`rounded-xl px-4 py-2 text-sm font-black disabled:opacity-60 ${
+      className={`w-full rounded-2xl px-4 py-3 text-sm font-black disabled:opacity-60 ${
         isActive
           ? "bg-red-50 text-red-700 hover:bg-red-100"
           : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"

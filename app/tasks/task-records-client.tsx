@@ -77,100 +77,159 @@ export default function TaskRecordsClient({
   return (
     <div className="pb-24 lg:pb-8">
       <section className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
-        <div className="mb-5 rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm">
-          <form className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_140px_140px_150px_160px_auto]">
-            <input
-              name="q"
-              defaultValue={filters.q}
-              placeholder="Search task no, atoll, island, Dhivehi text, service no..."
-              className="input"
-            />
-
-            <input
-              type="date"
-              name="from"
-              defaultValue={filters.from}
-              className="input"
-              title="From date"
-            />
-
-            <input
-              type="date"
-              name="to"
-              defaultValue={filters.to}
-              className="input"
-              title="To date"
-            />
-
-            {session.role === "MAIN_ADMIN" ? (
-              <select
-                name="region"
-                defaultValue={filters.region}
-                className="input"
-              >
-                {REGIONS.map((item) => (
-                  <option key={item} value={item}>
-                    {item === "ALL" ? "All Regions" : item}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                name="region"
-                value={session.region || ""}
-                readOnly
-                className="input bg-slate-100"
-              />
-            )}
-
-            <select
-              name="status"
-              defaultValue={filters.status}
-              className="input"
-            >
-              {STATUS.map((item) => (
-                <option key={item} value={item}>
-                  {formatStatus(item)}
-                </option>
-              ))}
-            </select>
-
-            <button className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black text-white hover:bg-slate-700">
-              Filter
-            </button>
-          </form>
-
-          <div className="mt-3 flex flex-col gap-3 text-xs font-bold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-            <p>
-              Showing page {pagination.currentPage} of {pagination.totalPages} •{" "}
-              {pagination.totalTasks} total records
+        <div className="mb-5 overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600 text-white shadow-xl shadow-blue-900/20">
+          <div className="p-5 sm:p-7">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-100">
+              Task Records
             </p>
 
-            <div className="flex items-center gap-3">
-              <Link href={buildExportUrl(filters)} className="text-emerald-600">
-                Export CSV
+            <h1 className="mt-3 text-3xl font-black tracking-tight">
+              Regional Task Records
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-blue-100">
+              Search, filter, view and export regional task information.
+            </p>
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/tasks/new"
+                className="rounded-2xl bg-white px-5 py-3 text-center text-sm font-black text-blue-700 shadow-lg shadow-blue-950/20 hover:bg-blue-50"
+              >
+                + Add Task
               </Link>
 
-              <Link href="/tasks" className="text-blue-600">
-                Clear
+              <Link
+                href={buildExportUrl(filters)}
+                className="rounded-2xl bg-white/10 px-5 py-3 text-center text-sm font-black text-white ring-1 ring-white/20 hover:bg-white/20"
+              >
+                Export CSV
               </Link>
             </div>
           </div>
         </div>
 
-        {/* Desktop table */}
-        <div className="hidden overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm lg:block">
+        <details className="group mb-5 rounded-[2rem] border border-blue-100 bg-white p-3 shadow-sm">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-[1.5rem] bg-blue-50 px-4 py-4">
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-900">Filters</p>
+              <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
+                Search task, date, region and status
+              </p>
+            </div>
+
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-sm font-black text-white transition group-open:rotate-180">
+              ↓
+            </span>
+          </summary>
+
+          <div className="mt-3">
+            <form className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_150px_150px_150px_160px_auto]">
+              <Field label="Search">
+                <input
+                  name="q"
+                  defaultValue={filters.q}
+                  placeholder="Task no, atoll, island, Dhivehi text..."
+                  className="input w-full"
+                />
+              </Field>
+
+              <Field label="From Date">
+                <input
+                  type="date"
+                  name="from"
+                  defaultValue={filters.from}
+                  className="input w-full"
+                />
+              </Field>
+
+              <Field label="To Date">
+                <input
+                  type="date"
+                  name="to"
+                  defaultValue={filters.to}
+                  className="input w-full"
+                />
+              </Field>
+
+              <Field label="Region">
+                {session.role === "MAIN_ADMIN" ? (
+                  <select
+                    name="region"
+                    defaultValue={filters.region}
+                    className="input w-full"
+                  >
+                    {REGIONS.map((item) => (
+                      <option key={item} value={item}>
+                        {item === "ALL" ? "All Regions" : item}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    name="region"
+                    value={session.region || ""}
+                    readOnly
+                    className="input w-full bg-slate-100"
+                  />
+                )}
+              </Field>
+
+              <Field label="Status">
+                <select
+                  name="status"
+                  defaultValue={filters.status}
+                  className="input w-full"
+                >
+                  {STATUS.map((item) => (
+                    <option key={item} value={item}>
+                      {formatStatus(item)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <div className="flex items-end">
+                <button className="w-full rounded-2xl bg-blue-700 px-5 py-3 text-sm font-black text-white hover:bg-blue-800">
+                  Filter
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-3 flex flex-col gap-3 text-xs font-bold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                Showing page {pagination.currentPage} of{" "}
+                {pagination.totalPages} • {pagination.totalTasks} total records
+              </p>
+
+              <div className="flex items-center gap-3">
+                <Link
+                  href={buildExportUrl(filters)}
+                  className="text-emerald-600"
+                >
+                  Export CSV
+                </Link>
+
+                <Link href="/tasks" className="text-blue-600">
+                  Clear
+                </Link>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <div className="hidden overflow-hidden rounded-[2rem] border border-blue-100 bg-white shadow-sm lg:block">
           <table className="w-full table-fixed text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="bg-blue-50/70 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="w-[105px] p-4 text-left">Task No</th>
-                <th className="w-[95px] p-4 text-left">Date</th>
-                <th className="w-[70px] p-4 text-left">Region</th>
-                <th className="w-[60px] p-4 text-left">Atoll</th>
+                <th className="w-[115px] p-4 text-left">Task No</th>
+                <th className="w-[100px] p-4 text-left">Date</th>
+                <th className="w-[75px] p-4 text-left">Region</th>
+                <th className="w-[70px] p-4 text-left">Atoll</th>
                 <th className="p-4 text-left">Description</th>
-                <th className="w-[110px] p-4 text-left">Added By</th>
-                <th className="w-[105px] p-4 text-left">Status</th>
-                <th className="w-[70px] p-4 text-center">View</th>
+                <th className="w-[120px] p-4 text-left">Added By</th>
+                <th className="w-[115px] p-4 text-left">Status</th>
+                <th className="w-[80px] p-4 text-center">View</th>
               </tr>
             </thead>
 
@@ -185,7 +244,7 @@ export default function TaskRecordsClient({
                 tasks.map((task) => (
                   <tr
                     key={task.id}
-                    className="border-t border-slate-100 hover:bg-slate-50"
+                    className="border-t border-blue-50 hover:bg-blue-50/40"
                   >
                     <td className="p-4 align-top font-black text-slate-900">
                       <span className="block break-words leading-6">
@@ -206,8 +265,8 @@ export default function TaskRecordsClient({
                     </td>
 
                     <td className="p-4 align-top">
-                      <p className="dhivehi-text line-clamp-1 text-sm text-slate-800">
-                        {shortText(task.description, 45)}
+                      <p className="dhivehi-text line-clamp-1 break-words text-sm text-slate-800 [overflow-wrap:anywhere]">
+                        {shortText(task.description, 55)}
                       </p>
                     </td>
 
@@ -240,64 +299,22 @@ export default function TaskRecordsClient({
           </table>
         </div>
 
-        {/* Mobile cards */}
-        <div className="space-y-4 lg:hidden">
+        <div className="grid grid-cols-1 gap-4 lg:hidden">
           {tasks.length === 0 ? (
-            <div className="rounded-[2rem] border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">
+            <div className="rounded-[2rem] border border-blue-100 bg-white p-8 text-center text-slate-500 shadow-sm">
               No task records found.
             </div>
           ) : (
             tasks.map((task) => (
-              <div
+              <TaskCard
                 key={task.id}
-                className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-black text-slate-900">
-                      {task.taskNumber}
-                    </h2>
-
-                    <p className="mt-1 text-xs font-bold text-slate-500">
-                      {formatDate(task.date)} • {task.region} • {task.atoll}
-                      {task.island ? ` • ${task.island}` : ""}
-                    </p>
-                  </div>
-
-                  <StatusBadge status={task.status} />
-                </div>
-
-                <div className="mt-4 rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                    Description
-                  </p>
-
-                  <p className="dhivehi-text line-clamp-2 mt-2 text-base text-slate-900">
-                    {task.description}
-                  </p>
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                  <Info label="Added By" value={task.createdByName} />
-                  <Info
-                    label="Service No"
-                    value={task.createdByServiceNumber}
-                  />
-                </div>
-
-                <button
-                  onClick={() => setSelectedTask(task)}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-center text-sm font-black text-white"
-                >
-                  <span>👁</span>
-                  View Task
-                </button>
-              </div>
+                task={task}
+                onView={() => setSelectedTask(task)}
+              />
             ))
           )}
         </div>
 
-        {/* Pagination */}
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
           {pagination.currentPage > 1 && (
             <PageButton
@@ -356,6 +373,62 @@ export default function TaskRecordsClient({
   );
 }
 
+function TaskCard({ task, onView }: { task: TaskItem; onView: () => void }) {
+  return (
+    <div className="rounded-[2rem] border border-blue-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-950/10">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-wide text-blue-600">
+            {formatDate(task.date)}
+          </p>
+
+          <h2 className="mt-2 break-words text-xl font-black text-slate-900">
+            {task.taskNumber}
+          </h2>
+
+          <p className="mt-1 break-words text-xs font-bold text-slate-500">
+            {task.region} • {task.atoll}
+            {task.island ? ` • ${task.island}` : ""}
+          </p>
+        </div>
+
+        <StatusBadge status={task.status} />
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <MiniInfo label="Shared To" value={String(task.sharedToOptions.length)} />
+        <MiniInfo
+          label="Request Type"
+          value={String(task.requestTypeOptions.length)}
+        />
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-2xl bg-slate-50 p-4">
+        <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+          Description
+        </p>
+
+        <p className="dhivehi-text line-clamp-2 mt-2 max-w-full whitespace-pre-wrap break-words text-base leading-7 text-slate-900 [overflow-wrap:anywhere]">
+          {task.description}
+        </p>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <Info label="Added By" value={task.createdByName} />
+        <Info label="Service No" value={task.createdByServiceNumber} />
+      </div>
+
+      <button
+        onClick={onView}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-700 px-4 py-3 text-center text-sm font-black text-white hover:bg-blue-800"
+      >
+        <span>👁</span>
+        View Task
+      </button>
+    </div>
+  );
+}
+
 function TaskModal({
   task,
   session,
@@ -410,7 +483,7 @@ function TaskModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
       <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2rem]">
-        <div className="shrink-0 border-b border-slate-200 bg-white px-5 py-4">
+        <div className="shrink-0 border-b border-blue-100 bg-white px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-wide text-blue-600">
@@ -474,7 +547,7 @@ function TaskModal({
             emptyText="No request type selected."
           />
 
-          <div className="mt-4 rounded-[1.5rem] bg-slate-50 p-5">
+          <div className="mt-4 overflow-hidden rounded-[1.5rem] bg-slate-50 p-5">
             <p className="text-xs font-black uppercase tracking-wide text-slate-400">
               Task Description
             </p>
@@ -484,7 +557,7 @@ function TaskModal({
             </p>
           </div>
 
-          <div className="mt-4 rounded-[1.5rem] bg-blue-50 p-5">
+          <div className="mt-4 overflow-hidden rounded-[1.5rem] bg-blue-50 p-5">
             <p className="text-xs font-black uppercase tracking-wide text-blue-500">
               Information Provided
             </p>
@@ -502,7 +575,7 @@ function TaskModal({
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-slate-200 bg-white p-4">
+        <div className="shrink-0 border-t border-blue-100 bg-white p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             {canDelete && (
               <button
@@ -536,6 +609,34 @@ function TaskModal({
   );
 }
 
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-400">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function MiniInfo({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-slate-50 p-3">
+      <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-black text-slate-900">{value}</p>
+    </div>
+  );
+}
+
 function TagSection({
   title,
   items,
@@ -546,7 +647,7 @@ function TagSection({
   emptyText: string;
 }) {
   return (
-    <div className="mt-4 rounded-[1.5rem] bg-slate-50 p-5">
+    <div className="mt-4 overflow-hidden rounded-[1.5rem] bg-slate-50 p-5">
       <p className="text-xs font-black uppercase tracking-wide text-slate-400">
         {title}
       </p>
@@ -600,7 +701,7 @@ function PageButton({
       className={`rounded-2xl px-4 py-2 text-sm font-black ${
         active
           ? "bg-blue-600 text-white"
-          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+          : "border border-blue-100 bg-white text-slate-700 hover:bg-blue-50"
       }`}
     >
       {label}
@@ -674,7 +775,7 @@ function StatusBadge({ status }: { status: string }) {
 
   return (
     <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${classes}`}
+      className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-black ${classes}`}
     >
       {formatStatus(status)}
     </span>

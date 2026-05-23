@@ -3,9 +3,9 @@ import { cookies } from "next/headers";
 
 export const COOKIE_NAME = "regional_task_session";
 
-const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET || "fallback-secret-change-this"
-);
+const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret-change-this";
+
+const secret = new TextEncoder().encode(JWT_SECRET);
 
 export type SessionUser = {
   id: string;
@@ -16,7 +16,13 @@ export type SessionUser = {
 };
 
 export async function signSession(user: SessionUser) {
-  return await new SignJWT(user)
+  return await new SignJWT({
+    id: user.id,
+    fullName: user.fullName,
+    serviceNumber: user.serviceNumber,
+    region: user.region,
+    role: user.role,
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
@@ -33,24 +39,31 @@ export async function getSession(): Promise<SessionUser | null> {
 
   try {
     const verified = await jwtVerify(token, secret);
+    const payload = verified.payload;
 
-    const payload = verified.payload as Partial<SessionUser>;
+    const id = typeof payload.id === "string" ? payload.id : "";
+    const fullName =
+      typeof payload.fullName === "string" ? payload.fullName : "";
+    const serviceNumber =
+      typeof payload.serviceNumber === "string" ? payload.serviceNumber : "";
+    const region =
+      typeof payload.region === "string" ? payload.region : null;
+    const role = payload.role;
 
-    if (
-      !payload.id ||
-      !payload.fullName ||
-      !payload.serviceNumber ||
-      !payload.role
-    ) {
+    if (!id || !fullName || !serviceNumber) {
+      return null;
+    }
+
+    if (role !== "MAIN_ADMIN" && role !== "STAFF") {
       return null;
     }
 
     return {
-      id: payload.id,
-      fullName: payload.fullName,
-      serviceNumber: payload.serviceNumber,
-      region: payload.region ?? null,
-      role: payload.role,
+      id,
+      fullName,
+      serviceNumber,
+      region,
+      role,
     };
   } catch {
     return null;
@@ -65,4 +78,22 @@ export async function requireUser() {
   }
 
   return user;
+}
+
+export async function requireMainAdmin() {
+  const user = await requireUser();
+
+  if (user.role !== "MAIN_ADMIN") {
+    throw new Error("Forbidden");
+  }
+
+  return user;
+}
+
+export function noStoreHeaders() {
+  return {
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+  };
 }

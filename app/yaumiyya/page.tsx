@@ -83,6 +83,17 @@ export default async function YaumiyyaPage({
           },
         },
       },
+      {
+        assignedTaskItems: {
+          some: {
+            OR: [
+              { assignedToName: { contains: q } },
+              { assignedToServiceNo: { contains: q } },
+              { taskDetails: { contains: q } },
+            ],
+          },
+        },
+      },
     ];
   }
 
@@ -103,6 +114,20 @@ export default async function YaumiyyaPage({
             region: true,
           },
         },
+        assignedTaskItems: {
+          orderBy: {
+            createdAt: "asc",
+          },
+          select: {
+            id: true,
+            assignedToUserId: true,
+            assignedToName: true,
+            assignedToServiceNo: true,
+            assignedToRegion: true,
+            taskDetails: true,
+            isCompleted: true,
+          },
+        },
       },
     }),
 
@@ -111,26 +136,54 @@ export default async function YaumiyyaPage({
 
   const totalPages = Math.max(Math.ceil(totalRecords / PAGE_SIZE), 1);
 
-  const safeRecords: YaumiyyaItem[] = records.map((record) => ({
-    id: record.id,
-    date: record.date.toISOString(),
-    startTime: record.startTime || "",
-    finishedTime: record.finishedTime || "",
-    region: record.region,
-    meetingTitle: record.meetingTitle || "",
-    meetingNotes: record.meetingNotes,
-    assignedTasks: record.assignedTasks || "",
-    createdByName: record.createdByName,
-    createdByServiceNumber: record.createdByServiceNumber,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString(),
-    participants: record.participants.map((participant) => ({
-      id: participant.id,
-      displayName: participant.displayName,
-      serviceNo: participant.serviceNo || "",
-      region: participant.region || "",
-    })),
-  }));
+  const safeRecords: YaumiyyaItem[] = records.map((record) => {
+    const assignedTaskItems =
+      record.assignedTaskItems.length > 0
+        ? record.assignedTaskItems.map((task) => ({
+            id: task.id,
+            assignedToUserId: task.assignedToUserId || "",
+            assignedToName: task.assignedToName,
+            assignedToServiceNo: task.assignedToServiceNo || "",
+            assignedToRegion: task.assignedToRegion || "",
+            taskDetails: task.taskDetails,
+            isCompleted: task.isCompleted,
+          }))
+        : record.assignedTasks
+          ? [
+              {
+                id: `${record.id}-legacy-assigned-task`,
+                assignedToUserId: "",
+                assignedToName: "Unassigned",
+                assignedToServiceNo: "",
+                assignedToRegion: "",
+                taskDetails: record.assignedTasks,
+                isCompleted: false,
+              },
+            ]
+          : [];
+
+    return {
+      id: record.id,
+      date: record.date.toISOString(),
+      startTime: record.startTime || "",
+      finishedTime: record.finishedTime || "",
+      region: record.region,
+      meetingTitle: record.meetingTitle || "",
+      meetingNotes: record.meetingNotes,
+      assignedTasks: record.assignedTasks || "",
+      createdByName: record.createdByName,
+      createdByServiceNumber: record.createdByServiceNumber,
+      createdAt: record.createdAt.toISOString(),
+      updatedAt: record.updatedAt.toISOString(),
+      participants: record.participants.map((participant) => ({
+        id: participant.id,
+        displayName: participant.displayName,
+        serviceNo: participant.serviceNo || "",
+        region: participant.region || "",
+      })),
+      assignedTaskItems,
+    };
+  });
 
   return (
     <AppShell
