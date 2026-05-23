@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { ReactNode } from "react";
+import { useRouter } from "next/navigation";
 
 type AppShellProps = {
   children: ReactNode;
@@ -19,7 +22,20 @@ export default function AppShell({
   subtitle,
   user,
 }: AppShellProps) {
+  const router = useRouter();
   const showAdminLinks = user.role === "MAIN_ADMIN";
+
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        cache: "no-store",
+      });
+    } finally {
+      router.replace("/");
+      router.refresh();
+    }
+  }
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#f4f8ff]">
@@ -125,7 +141,11 @@ export default function AppShell({
 
               {showAdminLinks && (
                 <>
-                  <SideNavItem href="/users" label="Users" icon={<UsersIcon />} />
+                  <SideNavItem
+                    href="/users"
+                    label="Users"
+                    icon={<UsersIcon />}
+                  />
                   <SideNavItem
                     href="/settings"
                     label="Settings"
@@ -158,15 +178,18 @@ export default function AppShell({
               </div>
             </div>
 
-            <form action="/api/auth/logout" method="post" className="shrink-0">
-              <button className="shrink-0 rounded-2xl bg-blue-950 px-3 py-2 text-xs font-black text-white shadow-lg shadow-blue-950/20">
-                Logout
-              </button>
-            </form>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={handleLogout}
+              className="shrink-0 select-none rounded-2xl bg-blue-950 px-3 py-2 text-xs font-black text-white shadow-lg shadow-blue-950/20"
+            >
+              Logout
+            </button>
           </div>
         </header>
 
-        <header className="hidden border-b border-blue-100 bg-white/90 backdrop-blur-xl lg:block">
+        <header className="relative z-[200] hidden border-b border-blue-100 bg-white/90 backdrop-blur-xl lg:block">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
             <div>
               <h2 className="text-2xl font-black text-slate-950">{title}</h2>
@@ -177,7 +200,7 @@ export default function AppShell({
               )}
             </div>
 
-            <details className="relative">
+            <details className="relative z-[300] select-none">
               <summary className="flex cursor-pointer list-none items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-right hover:bg-blue-100/70">
                 <div>
                   <p className="text-sm font-black text-slate-950">
@@ -192,7 +215,7 @@ export default function AppShell({
                 <span className="text-xs font-black text-blue-600">⌄</span>
               </summary>
 
-              <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-[1.5rem] border border-blue-100 bg-white p-3 shadow-xl shadow-blue-950/10">
+              <div className="absolute right-0 top-full z-[400] mt-2 w-64 rounded-[1.5rem] border border-blue-100 bg-white p-3 shadow-xl shadow-blue-950/10">
                 <div className="rounded-2xl bg-blue-50 p-3">
                   <p className="text-[11px] font-black uppercase tracking-wide text-blue-400">
                     Account
@@ -205,12 +228,15 @@ export default function AppShell({
                   </p>
                 </div>
 
-                <form action="/api/auth/logout" method="post" className="mt-2">
-                  <button className="flex w-full items-center justify-center gap-2 rounded-2xl bg-red-50 px-4 py-3 text-sm font-black text-red-700 hover:bg-red-100">
-                    <LogoutIcon />
-                    <span>Logout</span>
-                  </button>
-                </form>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={handleLogout}
+                  className="mt-2 flex w-full select-none items-center justify-center gap-2 rounded-2xl bg-red-50 px-4 py-3 text-sm font-black text-red-700 hover:bg-red-100"
+                >
+                  <LogoutIcon />
+                  <span>Logout</span>
+                </button>
               </div>
             </details>
           </div>

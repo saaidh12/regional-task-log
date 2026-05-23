@@ -18,7 +18,7 @@ const PROTECTED_PATHS = [
 
 const ADMIN_ONLY_PATHS = ["/users", "/settings", "/reports/exports"];
 
-const PUBLIC_PATHS = ["/"];
+const PUBLIC_PATHS = ["/", "/login"];
 
 const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || "fallback-secret-change-this"
@@ -28,6 +28,7 @@ export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const isPublicPath = PUBLIC_PATHS.includes(pathname);
+
   const isProtectedPath = PROTECTED_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`)
   );
@@ -35,12 +36,14 @@ export async function proxy(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
   const session = token ? await verifySession(token) : null;
 
+  // If already logged in and visiting login page/root, go dashboard
   if (isPublicPath && session) {
     return noStoreRedirect(new URL("/dashboard", req.url));
   }
 
+  // If not logged in and visiting protected page, go login
   if (isProtectedPath && !session) {
-    return noStoreRedirect(new URL("/", req.url));
+    return noStoreRedirect(new URL("/login", req.url));
   }
 
   const isAdminOnly = ADMIN_ONLY_PATHS.some(
@@ -113,6 +116,7 @@ function noStoreRedirect(url: URL) {
 export const config = {
   matcher: [
     "/",
+    "/login",
     "/dashboard/:path*",
     "/tasks/:path*",
     "/information/:path*",

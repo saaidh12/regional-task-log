@@ -4,6 +4,9 @@ import { NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
@@ -52,7 +55,10 @@ export async function POST(req: Request) {
           ? "webp"
           : "jpg";
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "persons");
+    const uploadRoot =
+      process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads");
+
+    const uploadDir = path.join(uploadRoot, "persons");
 
     await mkdir(uploadDir, { recursive: true });
 
