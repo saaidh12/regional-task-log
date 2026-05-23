@@ -30,6 +30,7 @@ export default function AppShell({
       await fetch("/api/auth/logout", {
         method: "POST",
         cache: "no-store",
+        credentials: "same-origin",
       });
     } finally {
       router.replace("/");

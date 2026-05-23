@@ -4,6 +4,9 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { COOKIE_NAME, signSession } from "@/lib/auth";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -12,9 +15,9 @@ export async function POST(req: Request) {
     const password = String(body.password || "");
 
     if (!username || !password) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "Username and password are required." },
-        { status: 400 }
+        400
       );
     }
 
@@ -23,25 +26,25 @@ export async function POST(req: Request) {
     });
 
     if (!user) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "Invalid username or password." },
-        { status: 401 }
+        401
       );
     }
 
     if (!user.isActive) {
-      return NextResponse.json(
-        { error: "This login has been disabled." },
-        { status: 403 }
+      return jsonNoStore(
+        { error: "This login has been disabled. Contact Main Admin." },
+        403
       );
     }
 
     const passwordOk = await bcrypt.compare(password, user.passwordHash);
 
     if (!passwordOk) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "Invalid username or password." },
-        { status: 401 }
+        401
       );
     }
 
@@ -75,13 +78,33 @@ export async function POST(req: Request) {
       maxAge: 60 * 60 * 24 * 7,
     });
 
+    response.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate"
+    );
+    response.headers.set("Pragma", "no-cache");
+    response.headers.set("Expires", "0");
+
     return response;
   } catch (error) {
     console.error("LOGIN_ERROR:", error);
 
-    return NextResponse.json(
+    return jsonNoStore(
       { error: "Something went wrong while logging in." },
-      { status: 500 }
+      500
     );
   }
+}
+
+function jsonNoStore(data: unknown, status: number) {
+  const response = NextResponse.json(data, { status });
+
+  response.headers.set(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, proxy-revalidate"
+  );
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Expires", "0");
+
+  return response;
 }

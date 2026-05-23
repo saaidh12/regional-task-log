@@ -4,17 +4,7 @@ import { COOKIE_NAME } from "@/lib/auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
-  return logout(req);
-}
-
-export async function POST(req: Request) {
-  return logout(req);
-}
-
-function logout(req: Request) {
-  const response = NextResponse.redirect(new URL("/", req.url));
-
+function clearSessionCookie(response: NextResponse) {
   response.cookies.set({
     name: COOKIE_NAME,
     value: "",
@@ -34,4 +24,14 @@ function logout(req: Request) {
   response.headers.set("Expires", "0");
 
   return response;
+}
+
+export async function POST() {
+  const response = NextResponse.json({ success: true });
+  return clearSessionCookie(response);
+}
+
+export async function GET(req: Request) {
+  const response = NextResponse.redirect(new URL("/", req.url), 303);
+  return clearSessionCookie(response);
 }

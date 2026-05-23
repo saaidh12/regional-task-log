@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -705,14 +704,12 @@ function PersonPhoto({
   if (person.photoUrl) {
     return (
       <div
-        className={`${className} relative shrink-0 overflow-hidden bg-blue-50 ring-4 ring-white/20`}
+        className={`${className} shrink-0 overflow-hidden bg-blue-50 ring-4 ring-white/20`}
       >
-        <Image
+        <img
           src={person.photoUrl}
           alt={person.fullName}
-          fill
-          className="object-cover"
-          sizes={size === "share" ? "112px" : size === "modal" ? "80px" : "64px"}
+          className="h-full w-full object-cover"
         />
       </div>
     );
