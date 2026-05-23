@@ -1,6 +1,5 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../lib/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -43,31 +42,33 @@ model User {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  tasks Task[]
+  tasks           Task[]
+  personRecords   PersonRecord[]
+  yaumiyyaRecords YaumiyyaRecord[]
 }
 
 model Task {
-  id                     String     @id @default(cuid())
-  taskNumber             String     @unique
-  date                   DateTime
-  region                 Region
-  atoll                  String
-  island                 String?
-  description            String
-  informationProvided    String
+  id                      String     @id @default(cuid())
+  taskNumber              String     @unique
+  date                    DateTime
+  region                  Region
+  atoll                   String
+  island                  String?
+  description             String
+  informationProvided     String
   informationProvidedDate DateTime?
-  status                 TaskStatus @default(PENDING)
+  status                  TaskStatus @default(PENDING)
 
   createdByUserId        String
   createdByName          String
   createdByServiceNumber String
 
-  createdAt              DateTime   @default(now())
-  updatedAt              DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  createdBy              User       @relation(fields: [createdByUserId], references: [id])
-  sharedToOptions        TaskSharedToOption[]
-  requestTypeOptions     TaskRequestTypeOption[]
+  createdBy          User                    @relation(fields: [createdByUserId], references: [id])
+  sharedToOptions    TaskSharedToOption[]
+  requestTypeOptions TaskRequestTypeOption[]
 }
 
 model SharedToOption {
@@ -110,4 +111,134 @@ model TaskRequestTypeOption {
   requestTypeOption RequestTypeOption @relation(fields: [requestTypeOptionId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, requestTypeOptionId])
+}
+
+/*
+  PERSON DATABASE MODULE
+
+  Rules:
+  - Each person belongs to one region.
+  - Staff can only see their own region records.
+  - Main Admin can see all region records.
+  - Crime categories are region-based.
+*/
+
+model PersonRecord {
+  id String @id @default(cuid())
+
+  photoUrl String?
+
+  fullName     String
+  idNumber     String?
+  address      String?
+  mobileNumber String?
+
+  region Region
+  atoll  String?
+  island String?
+
+  notes String?
+
+  createdByUserId        String
+  createdByName          String
+  createdByServiceNumber String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy       User                  @relation(fields: [createdByUserId], references: [id])
+  nicknames       PersonNickname[]
+  crimeCategories PersonCrimeCategory[]
+
+  @@index([region])
+  @@index([fullName])
+  @@index([idNumber])
+  @@index([mobileNumber])
+}
+
+model PersonNickname {
+  id       String @id @default(cuid())
+  personId String
+  name     String
+
+  person PersonRecord @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([name])
+}
+
+model CrimeCategory {
+  id       String  @id @default(cuid())
+  name     String
+  region   Region
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  people PersonCrimeCategory[]
+
+  @@unique([name, region])
+  @@index([region])
+}
+
+model PersonCrimeCategory {
+  id              String @id @default(cuid())
+  personId        String
+  crimeCategoryId String
+
+  person        PersonRecord  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  crimeCategory CrimeCategory @relation(fields: [crimeCategoryId], references: [id], onDelete: Cascade)
+
+  @@unique([personId, crimeCategoryId])
+}
+
+/*
+  YAUMIYYA MODULE
+
+  Meaning:
+  - Yaumiyya = meeting notes.
+  - Region based.
+  - Staff can only see own region records.
+  - Main Admin can see all regions.
+*/
+
+model YaumiyyaRecord {
+  id String @id @default(cuid())
+
+  date         DateTime
+  startTime    String?
+  finishedTime String?
+  region       Region
+  meetingTitle String?
+
+  meetingNotes  String
+  assignedTasks String?
+
+  createdByUserId        String
+  createdByName          String
+  createdByServiceNumber String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy    User                    @relation(fields: [createdByUserId], references: [id])
+  participants YaumiyyaParticipant[]
+
+  @@index([region])
+  @@index([date])
+}
+
+model YaumiyyaParticipant {
+  id         String @id @default(cuid())
+  yaumiyyaId String
+
+  userId      String?
+  displayName String
+  serviceNo   String?
+  region      Region?
+
+  yaumiyya YaumiyyaRecord @relation(fields: [yaumiyyaId], references: [id], onDelete: Cascade)
+
+  @@index([yaumiyyaId])
+  @@index([displayName])
 }

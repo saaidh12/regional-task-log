@@ -25,36 +25,55 @@ export default async function SettingsPage() {
     redirect("/change-password");
   }
 
-  const [sharedToOptions, requestTypeOptions] = await Promise.all([
-    prisma.sharedToOption.findMany({
-      orderBy: { name: "asc" },
-      select: {
-        id: true,
-        name: true,
-        isActive: true,
-      },
-    }),
+  const [sharedToOptions, requestTypeOptions, crimeCategories] =
+    await Promise.all([
+      prisma.sharedToOption.findMany({
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          isActive: true,
+        },
+      }),
 
-    prisma.requestTypeOption.findMany({
-      orderBy: { name: "asc" },
-      select: {
-        id: true,
-        name: true,
-        isActive: true,
-      },
-    }),
-  ]);
+      prisma.requestTypeOption.findMany({
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          isActive: true,
+        },
+      }),
+
+      prisma.crimeCategory.findMany({
+        orderBy: [
+          {
+            region: "asc",
+          },
+          {
+            name: "asc",
+          },
+        ],
+        select: {
+          id: true,
+          name: true,
+          region: true,
+          isActive: true,
+        },
+      }),
+    ]);
 
   return (
     <AppShell
       title="Settings"
-      subtitle="Manage task dropdown options"
+      subtitle="Manage task and database dropdown options"
       user={session}
     >
       <section className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
         <SettingsOptionsClient
           sharedToOptions={sharedToOptions}
           requestTypeOptions={requestTypeOptions}
+          crimeCategories={crimeCategories}
         />
       </section>
     </AppShell>

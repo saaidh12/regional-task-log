@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Faruma";
+  src: url("/fonts/Faruma.ttf.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.dhivehi-text,
+[dir="rtl"],
+[dir="auto"] {
+  font-family: "Faruma", Arial, sans-serif;
+}
+
 * {
   box-sizing: border-box;
 }

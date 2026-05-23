@@ -2,6 +2,8 @@ import bcrypt from "bcryptjs";
 
 import { prisma } from "../lib/prisma";
 
+const REGIONS = ["SPR", "SCPR", "NCPR", "NPR", "UNPR"] as const;
+
 async function main() {
   const passwordHash = await bcrypt.hash("admin123", 10);
 
@@ -53,10 +55,47 @@ async function main() {
     });
   }
 
+  const defaultCrimeCategories = [
+    "Theft",
+    "Drug",
+    "Assault",
+    "Fraud",
+    "Robbery",
+    "Burglary",
+    "Domestic Violence",
+    "Mobile Theft",
+    "Cyber Crime",
+    "Wanted Person",
+    "Gang Related",
+    "Other",
+  ];
+
+  for (const region of REGIONS) {
+    for (const name of defaultCrimeCategories) {
+      await prisma.crimeCategory.upsert({
+        where: {
+          name_region: {
+            name,
+            region,
+          },
+        },
+        update: {
+          isActive: true,
+        },
+        create: {
+          name,
+          region,
+          isActive: true,
+        },
+      });
+    }
+  }
+
   console.log("Main admin created");
   console.log("Username: admin");
   console.log("Password: admin123");
-  console.log("Default dropdown options created");
+  console.log("Default task dropdown options created");
+  console.log("Default region-wise crime categories created");
 }
 
 main()

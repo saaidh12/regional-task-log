@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const OPTION_TYPES = ["SHARED_TO", "REQUEST_TYPE"] as const;
+const OPTION_TYPES = ["SHARED_TO", "REQUEST_TYPE", "CRIME_CATEGORY"] as const;
+const REGIONS = ["SPR", "SCPR", "NCPR", "NPR", "UNPR"] as const;
 
 export async function POST(req: Request) {
   try {
@@ -20,6 +21,7 @@ export async function POST(req: Request) {
 
     const type = String(body.type || "").trim();
     const name = String(body.name || "").trim();
+    const region = String(body.region || "").trim();
 
     if (!OPTION_TYPES.includes(type as any)) {
       return NextResponse.json(
@@ -48,11 +50,50 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, option });
     }
 
-    const option = await prisma.requestTypeOption.upsert({
-      where: { name },
-      update: { isActive: true },
-      create: {
+    if (type === "REQUEST_TYPE") {
+      const option = await prisma.requestTypeOption.upsert({
+        where: { name },
+        update: { isActive: true },
+        create: {
+          name,
+          isActive: true,
+        },
+      });
+
+      return NextResponse.json({ success: true, option });
+    }
+
+    if (!REGIONS.includes(region as any)) {
+      return NextResponse.json(
+        { error: "Please select a valid region." },
+        { status: 400 }
+      );
+    }
+
+    const existingCategory = await prisma.crimeCategory.findFirst({
+      where: {
         name,
+        region: region as any,
+      },
+    });
+
+    if (existingCategory) {
+      const option = await prisma.crimeCategory.update({
+        where: {
+          id: existingCategory.id,
+        },
+        data: {
+          isActive: true,
+        },
+      });
+
+      return NextResponse.json({ success: true, option });
+    }
+
+    const option = await prisma.crimeCategory.create({
+      data: {
+        name,
+        region: region as any,
         isActive: true,
       },
     });
@@ -108,7 +149,16 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ success: true, option });
     }
 
-    const option = await prisma.requestTypeOption.update({
+    if (type === "REQUEST_TYPE") {
+      const option = await prisma.requestTypeOption.update({
+        where: { id },
+        data: { isActive },
+      });
+
+      return NextResponse.json({ success: true, option });
+    }
+
+    const option = await prisma.crimeCategory.update({
       where: { id },
       data: { isActive },
     });
