@@ -91,11 +91,25 @@ async function main() {
     }
   }
 
+  const defaultInfoShareAreas = ["SPR", "SCPR", "NPR", "NCPR", "UNPR"];
+
+  for (const name of defaultInfoShareAreas) {
+    await prisma.infoShareArea.upsert({
+      where: { name },
+      update: { isActive: true },
+      create: {
+        name,
+        isActive: true,
+      },
+    });
+  }
+
   console.log("Main admin created");
   console.log("Username: admin");
   console.log("Password: admin123");
   console.log("Default task dropdown options created");
   console.log("Default region-wise crime categories created");
+  console.log("Default information shared areas created");
 }
 
 main()

@@ -6,7 +6,6 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const REGIONS = ["SPR", "SCPR", "NCPR", "NPR", "UNPR"] as const;
-const STATUSES = ["PENDING", "IN_PROGRESS", "COMPLETED", "CLOSED"] as const;
 
 export default async function ReportsPage() {
   const session = await getSession();
@@ -53,6 +52,19 @@ export default async function ReportsPage() {
           region: session.region as "SPR" | "SCPR" | "NCPR" | "NPR" | "UNPR",
         };
 
+  const infoWhere =
+    session.role === "MAIN_ADMIN"
+      ? {}
+      : {
+          sharedToAreas: {
+            some: {
+              area: {
+                name: session.region || "",
+              },
+            },
+          },
+        };
+
   const [
     totalTasks,
     todayTasks,
@@ -62,6 +74,14 @@ export default async function ReportsPage() {
     completedTasks,
     closedTasks,
     recentTasks,
+
+    totalInfo,
+    todayInfo,
+    monthInfo,
+    normalInfo,
+    importantInfo,
+    urgentInfo,
+    recentInfo,
   ] = await Promise.all([
     prisma.task.count({ where: baseWhere }),
 
@@ -118,6 +138,67 @@ export default async function ReportsPage() {
         updatedAt: "desc",
       },
       take: 6,
+    }),
+
+    prisma.infoShare.count({ where: infoWhere }),
+
+    prisma.infoShare.count({
+      where: {
+        ...infoWhere,
+        date: {
+          gte: todayStart,
+          lte: todayEnd,
+        },
+      },
+    }),
+
+    prisma.infoShare.count({
+      where: {
+        ...infoWhere,
+        date: {
+          gte: monthStart,
+        },
+      },
+    }),
+
+    prisma.infoShare.count({
+      where: {
+        ...infoWhere,
+        priority: "NORMAL",
+      },
+    }),
+
+    prisma.infoShare.count({
+      where: {
+        ...infoWhere,
+        priority: "IMPORTANT",
+      },
+    }),
+
+    prisma.infoShare.count({
+      where: {
+        ...infoWhere,
+        priority: "URGENT",
+      },
+    }),
+
+    prisma.infoShare.findMany({
+      where: infoWhere,
+      orderBy: {
+        updatedAt: "desc",
+      },
+      take: 6,
+      include: {
+        sharedToAreas: {
+          include: {
+            area: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
     }),
   ]);
 
@@ -267,13 +348,95 @@ export default async function ReportsPage() {
     })
   );
 
+  const infoAreaRowsRaw = await prisma.infoShareToArea.groupBy({
+    by: ["areaId"],
+    _count: {
+      id: true,
+    },
+    where:
+      session.role === "MAIN_ADMIN"
+        ? {}
+        : {
+            area: {
+              name: session.region || "",
+            },
+          },
+    orderBy: {
+      _count: {
+        id: "desc",
+      },
+    },
+  });
+
+  const infoAreaRows = await Promise.all(
+    infoAreaRowsRaw.map(async (row) => {
+      const area = await prisma.infoShareArea.findUnique({
+        where: { id: row.areaId },
+        select: { name: true },
+      });
+
+      return {
+        name: area?.name || "-",
+        count: row._count.id,
+      };
+    })
+  );
+
+  const infoStaffRaw = await prisma.infoShare.groupBy({
+    by: ["createdByUserId", "createdByName", "createdByServiceNumber"],
+    where: infoWhere,
+    _count: {
+      id: true,
+    },
+    orderBy: {
+      _count: {
+        id: "desc",
+      },
+    },
+    take: 20,
+  });
+
+  const infoStaffRows = await Promise.all(
+    infoStaffRaw.map(async (staff) => {
+      const where = {
+        ...infoWhere,
+        createdByUserId: staff.createdByUserId,
+      };
+
+      const [normal, important, urgent, lastInfo] = await Promise.all([
+        prisma.infoShare.count({ where: { ...where, priority: "NORMAL" } }),
+        prisma.infoShare.count({ where: { ...where, priority: "IMPORTANT" } }),
+        prisma.infoShare.count({ where: { ...where, priority: "URGENT" } }),
+        prisma.infoShare.findFirst({
+          where,
+          orderBy: {
+            updatedAt: "desc",
+          },
+          select: {
+            updatedAt: true,
+          },
+        }),
+      ]);
+
+      return {
+        name: staff.createdByName,
+        serviceNumber: staff.createdByServiceNumber,
+        total: staff._count.id,
+        normal,
+        important,
+        urgent,
+        lastUpdate: lastInfo?.updatedAt || null,
+      };
+    })
+  );
+
   return (
     <AppShell
       title="Reports"
       subtitle={
         session.role === "MAIN_ADMIN"
-          ? "All region performance and task summary"
-          : `${session.region} performance and task summary`
+          ? "All region performance and summary"
+          : `${session.region} performance and summary`
       }
       user={session}
     >
@@ -293,14 +456,21 @@ export default async function ReportsPage() {
               </h2>
 
               <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-300 sm:text-base">
-                Evaluate region activity, staff task updates, status progress,
-                request types and information sharing.
+                Evaluate task progress, staff activity, information sharing,
+                request types and regional performance.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-7">
+        <SectionTitle
+          title="Task Report"
+          subtitle="Task status, region progress and staff task updates."
+          href="/tasks"
+          hrefLabel="Task Records"
+        />
+
+        <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-7">
           <ReportCard title="Total" value={totalTasks} />
           <ReportCard title="Today" value={todayTasks} />
           <ReportCard title="This Month" value={monthTasks} />
@@ -312,23 +482,12 @@ export default async function ReportsPage() {
 
         <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-3">
           <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-xl font-black text-slate-900">
-                  Region Wise Summary
-                </h3>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
-                  Compare task progress by region.
-                </p>
-              </div>
-
-              <Link
-                href="/tasks"
-                className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-black text-white"
-              >
-                Records
-              </Link>
-            </div>
+            <h3 className="text-xl font-black text-slate-900">
+              Region Wise Summary
+            </h3>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              Compare task progress by region.
+            </p>
 
             <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-slate-200">
               <div className="overflow-x-auto">
@@ -366,9 +525,7 @@ export default async function ReportsPage() {
           </div>
 
           <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-xl font-black text-slate-900">
-              Request Type
-            </h3>
+            <h3 className="text-xl font-black text-slate-900">Request Type</h3>
 
             <p className="mt-1 text-sm font-semibold text-slate-500">
               Most requested information categories.
@@ -389,7 +546,7 @@ export default async function ReportsPage() {
         <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-3">
           <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
             <h3 className="text-xl font-black text-slate-900">
-              Staff Wise Performance
+              Staff Wise Task Performance
             </h3>
 
             <p className="mt-1 text-sm font-semibold text-slate-500">
@@ -428,9 +585,7 @@ export default async function ReportsPage() {
                       <MiniCount
                         label="Last"
                         value={
-                          staff.lastUpdate
-                            ? formatDate(staff.lastUpdate)
-                            : "-"
+                          staff.lastUpdate ? formatDate(staff.lastUpdate) : "-"
                         }
                       />
                     </div>
@@ -442,12 +597,10 @@ export default async function ReportsPage() {
 
           <div className="space-y-5">
             <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-xl font-black text-slate-900">
-                Shared To
-              </h3>
+              <h3 className="text-xl font-black text-slate-900">Shared To</h3>
 
               <p className="mt-1 text-sm font-semibold text-slate-500">
-                Information sharing destination summary.
+                Task sharing destination summary.
               </p>
 
               <div className="mt-5 space-y-3">
@@ -466,16 +619,13 @@ export default async function ReportsPage() {
             </div>
 
             <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-xl font-black text-slate-900">
-                    Recent Updates
-                  </h3>
-                  <p className="mt-1 text-sm font-semibold text-slate-500">
-                    Latest updated tasks.
-                  </p>
-                </div>
-              </div>
+              <h3 className="text-xl font-black text-slate-900">
+                Recent Task Updates
+              </h3>
+
+              <p className="mt-1 text-sm font-semibold text-slate-500">
+                Latest updated tasks.
+              </p>
 
               <div className="mt-5 space-y-3">
                 {recentTasks.length === 0 ? (
@@ -511,8 +661,181 @@ export default async function ReportsPage() {
             </div>
           </div>
         </div>
+
+        <SectionTitle
+          title="Information Shared Report"
+          subtitle="Information shared to regions or areas outside normal tasks."
+          href="/information"
+          hrefLabel="Information Records"
+        />
+
+        <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-6">
+          <ReportCard title="Total Info" value={totalInfo} />
+          <ReportCard title="Today" value={todayInfo} />
+          <ReportCard title="This Month" value={monthInfo} />
+          <ReportCard title="Normal" value={normalInfo} />
+          <ReportCard title="Important" value={importantInfo} />
+          <ReportCard title="Urgent" value={urgentInfo} />
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-3">
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+            <h3 className="text-xl font-black text-slate-900">
+              Shared Area Summary
+            </h3>
+
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              Count by information shared area.
+            </p>
+
+            <div className="mt-5 space-y-3">
+              {infoAreaRows.length === 0 ? (
+                <EmptyBox text="No information area data yet." />
+              ) : (
+                infoAreaRows.map((row) => (
+                  <CountRow key={row.name} label={row.name} value={row.count} />
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
+            <h3 className="text-xl font-black text-slate-900">
+              Information Added By Users
+            </h3>
+
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              See who added shared information records.
+            </p>
+
+            <div className="mt-5 space-y-3">
+              {infoStaffRows.length === 0 ? (
+                <EmptyBox text="No information staff data yet." />
+              ) : (
+                infoStaffRows.map((staff) => (
+                  <div
+                    key={`${staff.serviceNumber}-info`}
+                    className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <h4 className="font-black text-slate-900">
+                          {staff.name}
+                        </h4>
+                        <p className="mt-1 text-xs font-bold text-slate-500">
+                          {staff.serviceNumber}
+                        </p>
+                      </div>
+
+                      <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-700">
+                        {staff.total} records
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <MiniCount label="Normal" value={staff.normal} />
+                      <MiniCount label="Important" value={staff.important} />
+                      <MiniCount label="Urgent" value={staff.urgent} />
+                      <MiniCount
+                        label="Last"
+                        value={
+                          staff.lastUpdate ? formatDate(staff.lastUpdate) : "-"
+                        }
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-xl font-black text-slate-900">
+                Latest Shared Information
+              </h3>
+              <p className="mt-1 text-sm font-semibold text-slate-500">
+                Latest information records shared to regions or areas.
+              </p>
+            </div>
+
+            <Link
+              href="/information"
+              className="rounded-2xl bg-slate-900 px-4 py-2 text-center text-sm font-black text-white"
+            >
+              View Information
+            </Link>
+          </div>
+
+          <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {recentInfo.length === 0 ? (
+              <EmptyBox text="No shared information yet." />
+            ) : (
+              recentInfo.map((info) => {
+                const sharedAreas = info.sharedToAreas
+                  .map((item) => item.area.name)
+                  .join(", ");
+
+                return (
+                  <Link
+                    key={info.id}
+                    href="/information"
+                    className="block rounded-[1.5rem] bg-slate-50 p-4 hover:bg-blue-50"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="line-clamp-2 break-words font-black text-slate-900">
+                          {info.title}
+                        </p>
+                        <p className="mt-1 text-xs font-bold text-slate-500">
+                          {formatDate(info.date)} • {sharedAreas || "-"}
+                        </p>
+                      </div>
+
+                      <PriorityBadge priority={info.priority} />
+                    </div>
+
+                    <p className="dhivehi-text line-clamp-2 mt-3 text-sm text-slate-700">
+                      {info.details}
+                    </p>
+                  </Link>
+                );
+              })
+            )}
+          </div>
+        </div>
       </section>
     </AppShell>
+  );
+}
+
+function SectionTitle({
+  title,
+  subtitle,
+  href,
+  hrefLabel,
+}: {
+  title: string;
+  subtitle: string;
+  href: string;
+  hrefLabel: string;
+}) {
+  return (
+    <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h3 className="text-2xl font-black text-slate-950">{title}</h3>
+        <p className="mt-1 text-sm font-semibold text-slate-500">{subtitle}</p>
+      </div>
+
+      <Link
+        href={href}
+        className="rounded-2xl bg-blue-700 px-4 py-2 text-center text-sm font-black text-white shadow-lg shadow-blue-700/20 hover:bg-blue-800"
+      >
+        {hrefLabel}
+      </Link>
+    </div>
   );
 }
 
@@ -572,6 +895,23 @@ function StatusBadge({ status }: { status: string }) {
       className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-black ${classes}`}
     >
       {formatStatus(status)}
+    </span>
+  );
+}
+
+function PriorityBadge({ priority }: { priority: string }) {
+  const classes =
+    priority === "URGENT"
+      ? "bg-red-50 text-red-700"
+      : priority === "IMPORTANT"
+        ? "bg-amber-50 text-amber-700"
+        : "bg-blue-50 text-blue-700";
+
+  return (
+    <span
+      className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-black ${classes}`}
+    >
+      {priority}
     </span>
   );
 }
